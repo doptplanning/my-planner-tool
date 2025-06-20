@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useFormData } from '../components/FormDataContext';
 
@@ -10,8 +10,8 @@ export default function ShootingPage() {
   const reference = formData.shooting.reference;
   const images = formData.shooting.images;
 
-  React.useEffect(() => {
-    setPreviews(images.map(img => URL.createObjectURL(img)));
+  useEffect(() => {
+    setPreviews(images.map(img => (img instanceof File ? URL.createObjectURL(img) : img)));
     return () => { previews.forEach(url => URL.revokeObjectURL(url)); };
   }, [images.length]);
 

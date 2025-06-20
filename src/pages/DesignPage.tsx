@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useFormData } from '../components/FormDataContext';
 
@@ -24,17 +24,17 @@ const FIELDS = [
 export default function DesignPage() {
   const { formData, setFormData } = useFormData();
   const navigate = useNavigate();
-  const [previews, setPreviews] = React.useState<string[]>([]);
-  const [previewsColor, setPreviewsColor] = React.useState<string[]>([]);
+  const [previews, setPreviews] = useState<string[]>([]);
+  const [previewsColor, setPreviewsColor] = useState<string[]>([]);
   const values = formData.design.values;
   const images = formData.design.images;
   const imagesColor = formData.design.imagesColor;
   const referenceLinks = formData.design.referenceLinks;
-  const [referenceEditMode, setReferenceEditMode] = React.useState(referenceLinks.map(() => true));
+  const [referenceEditMode, setReferenceEditMode] = useState(referenceLinks.map(() => true));
 
-  React.useEffect(() => {
-    setPreviews(images.map(img => URL.createObjectURL(img)));
-    setPreviewsColor(imagesColor.map(img => URL.createObjectURL(img)));
+  useEffect(() => {
+    setPreviews(images.map(img => (img instanceof File ? URL.createObjectURL(img) : img)));
+    setPreviewsColor(imagesColor.map(img => (img instanceof File ? URL.createObjectURL(img) : img)));
     return () => {
       previews.forEach(url => URL.revokeObjectURL(url));
       previewsColor.forEach(url => URL.revokeObjectURL(url));
@@ -103,18 +103,6 @@ export default function DesignPage() {
     setFormData(prev => ({
       ...prev,
       design: { ...prev.design, values: prev.design.values.map((v, i) => i === idx ? value : v) }
-    }));
-  };
-  const handleImagesChange = (newImages: File[]) => {
-    setFormData(prev => ({
-      ...prev,
-      design: { ...prev.design, images: newImages }
-    }));
-  };
-  const handleImagesColorChange = (newImages: File[]) => {
-    setFormData(prev => ({
-      ...prev,
-      design: { ...prev.design, imagesColor: newImages }
     }));
   };
   const handleReferenceLinksChange = (idx: number, value: string) => {
@@ -262,13 +250,8 @@ export default function DesignPage() {
                         placeholder="링크를 입력하세요"
                         value={link}
                         onChange={e => handleReferenceLinksChange(idx, e.target.value)}
-                        onBlur={e => {
+                        onBlur={() => {
                           if (/^https?:\/\//.test(link.trim())) {
-                            setReferenceEditMode(modes => modes.map((m, i) => i === idx ? false : m));
-                          }
-                        }}
-                        onKeyDown={e => {
-                          if (e.key === 'Enter' && /^https?:\/\//.test(link.trim())) {
                             setReferenceEditMode(modes => modes.map((m, i) => i === idx ? false : m));
                           }
                         }}

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import HistoryList from '../components/History/HistoryList';
 import type { HistoryItem } from '../components/History/HistoryList';
 import HistoryDetail from '../components/History/HistoryDetail';

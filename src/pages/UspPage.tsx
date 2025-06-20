@@ -1,17 +1,5 @@
-import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useFormData } from '../components/FormDataContext';
-
-const EXAMPLES = [
-  {
-    function: '착용감+편안함',
-    desc: '핵심 기술력으로 부위별 압박 설계 손목부터 종아리까지, 각자의 근육 위치에 따라 압박 강도 조절 필요한 곳에만 꼭 맞게 작용하여 불필요한 압박 없이 편안한 착용'
-  },
-  {
-    function: '기능성',
-    desc: '3단계 압박 밴드 통통 붓고 저린 종아리,손목에도 부담 없이 점진적으로 나뉜 압박 구조로 장시간 착용 가능 임신 중 일상 생활, 육아 활동 등 일상 생활에 무리 없는 착용감'
-  }
-];
 
 export default function UspPage() {
   const { formData, setFormData } = useFormData();
