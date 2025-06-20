@@ -1,10 +1,23 @@
 import { useNavigate } from 'react-router-dom';
 import { useFormData } from '../components/FormDataContext';
+import { useEffect } from 'react';
 
 export default function UspPage() {
   const { formData, setFormData } = useFormData();
   const navigate = useNavigate();
   const usps = formData.usp;
+  const user = JSON.parse(localStorage.getItem('user') || '{}');
+
+  useEffect(() => {
+    if (user.email) {
+      const temp = localStorage.getItem(`temp_UspPage_${user.email}`);
+      if (temp) {
+        if (window.confirm('임시 저장된 데이터가 있습니다. 불러오시겠습니까?')) {
+          setFormData((prev: any) => ({ ...prev, usp: JSON.parse(temp) }));
+        }
+      }
+    }
+  }, []);
 
   const handleChange = (idx: number, key: 'function' | 'desc', value: string) => {
     setFormData(prev => ({
@@ -17,10 +30,20 @@ export default function UspPage() {
     navigate('/design');
   };
 
+  const handleTempSave = () => {
+    if (user.email) {
+      localStorage.setItem(`temp_UspPage_${user.email}`, JSON.stringify(formData.usp));
+      alert('임시 저장되었습니다!');
+    }
+  };
+
   return (
     <div style={{ width: '100vw', minHeight: '100vh', background: '#f7f7f7', display: 'flex', justifyContent: 'center', alignItems: 'flex-start', paddingTop: 60 }}>
       <div style={{ width: '100%', maxWidth: 1000, background: '#fff', borderRadius: 12, boxShadow: '0 2px 16px rgba(0,0,0,0.08)', padding: 36, marginTop: 32, boxSizing: 'border-box' }}>
-        <h2 style={{ marginBottom: 16, textAlign: 'left' }}>작업의뢰서 | 기획</h2>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
+          <h2 style={{ marginBottom: 16, textAlign: 'left' }}>작업의뢰서 | 기획</h2>
+          <button type="button" onClick={handleTempSave} style={{ padding: '8px 18px', fontSize: 15, background: '#eee', color: '#222', border: '1px solid #bbb', borderRadius: 6, cursor: 'pointer', fontWeight: 600, marginLeft: 16 }}>임시 저장</button>
+        </div>
         <div style={{ color: '#e53935', fontWeight: 500, marginBottom: 16, fontSize: 15 }}>
           제품의 주요(or 고유) 특징 및 장점을 중요도 <b>우선순위로</b> 자세하게 작성 해 주세요 (최소 5개)
         </div>

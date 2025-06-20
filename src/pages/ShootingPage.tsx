@@ -9,11 +9,30 @@ export default function ShootingPage() {
   const concept = formData.shooting.concept;
   const reference = formData.shooting.reference;
   const images = formData.shooting.images;
+  const user = JSON.parse(localStorage.getItem('user') || '{}');
 
   useEffect(() => {
     setPreviews(images.map(img => (img instanceof File ? URL.createObjectURL(img) : img)));
     return () => { previews.forEach(url => URL.revokeObjectURL(url)); };
   }, [images.length]);
+
+  useEffect(() => {
+    if (user.email) {
+      const temp = localStorage.getItem(`temp_ShootingPage_${user.email}`);
+      if (temp) {
+        if (window.confirm('임시 저장된 데이터가 있습니다. 불러오시겠습니까?')) {
+          setFormData((prev: any) => ({ ...prev, shooting: JSON.parse(temp) }));
+        }
+      }
+    }
+  }, []);
+
+  const handleTempSave = () => {
+    if (user.email) {
+      localStorage.setItem(`temp_ShootingPage_${user.email}`, JSON.stringify(formData.shooting));
+      alert('임시 저장되었습니다!');
+    }
+  };
 
   // 입력값 변경 핸들러
   const handleConceptChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
@@ -39,7 +58,10 @@ export default function ShootingPage() {
   return (
     <div style={{ width: '100vw', minHeight: '100vh', background: '#f7f7f7', display: 'flex', justifyContent: 'center', alignItems: 'flex-start', paddingTop: 60 }}>
       <div style={{ width: '100%', maxWidth: 950, background: '#fff', borderRadius: 12, boxShadow: '0 2px 16px rgba(0,0,0,0.08)', padding: 36, marginTop: 32, boxSizing: 'border-box' }}>
-        <h2 style={{ marginBottom: 16, textAlign: 'left' }}>작업의뢰서 | 촬영</h2>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
+          <h2 style={{ marginBottom: 16, textAlign: 'left' }}>작업의뢰서 | 촬영</h2>
+          <button type="button" onClick={handleTempSave} style={{ padding: '8px 18px', fontSize: 15, background: '#eee', color: '#222', border: '1px solid #bbb', borderRadius: 6, cursor: 'pointer', fontWeight: 600, marginLeft: 16 }}>임시 저장</button>
+        </div>
         <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: 24, fontSize: 15 }}>
           <tbody>
             <tr>
@@ -111,10 +133,6 @@ export default function ShootingPage() {
               </div>
             ))}
           </div>
-        </div>
-        <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12 }}>
-          <button type="button" onClick={() => navigate(-1)} style={{ flex: 1, padding: 14, fontSize: 17, background: '#eee', color: '#222', border: 'none', borderRadius: 6, fontWeight: 600, cursor: 'pointer' }}>이전</button>
-          <button type="button" onClick={() => navigate('/summary')} style={{ flex: 1, padding: 14, fontSize: 17, background: '#111', color: '#fff', border: 'none', borderRadius: 6, fontWeight: 600, cursor: 'pointer' }}>제출하기</button>
         </div>
       </div>
     </div>

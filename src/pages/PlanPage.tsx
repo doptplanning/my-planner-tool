@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useFormData } from '../components/FormDataContext';
 
@@ -6,6 +6,18 @@ export default function PlanPage() {
   const { formData, setFormData } = useFormData();
   const navigate = useNavigate();
   const plan = formData.plan;
+  const user = JSON.parse(localStorage.getItem('user') || '{}');
+
+  useEffect(() => {
+    if (user.email) {
+      const temp = localStorage.getItem(`temp_PlanPage_${user.email}`);
+      if (temp) {
+        if (window.confirm('임시 저장된 데이터가 있습니다. 불러오시겠습니까?')) {
+          setFormData((prev: any) => ({ ...prev, plan: JSON.parse(temp) }));
+        }
+      }
+    }
+  }, []);
 
   const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     setFormData(prev => ({ ...prev, plan: e.target.value }));
@@ -15,10 +27,20 @@ export default function PlanPage() {
     navigate('/usp');
   };
 
+  const handleTempSave = () => {
+    if (user.email) {
+      localStorage.setItem(`temp_PlanPage_${user.email}`, JSON.stringify(formData.plan));
+      alert('임시 저장되었습니다!');
+    }
+  };
+
   return (
     <div style={{ width: '100vw', minHeight: '100vh', background: '#f7f7f7', display: 'flex', justifyContent: 'center', alignItems: 'flex-start', paddingTop: 60 }}>
       <div style={{ width: '100%', maxWidth: 900, background: '#fff', borderRadius: 12, boxShadow: '0 2px 16px rgba(0,0,0,0.08)', padding: 36, marginTop: 32, boxSizing: 'border-box' }}>
-        <h2 style={{ marginBottom: 16, textAlign: 'left' }}>작업의뢰서 | 기획</h2>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
+          <h2 style={{ marginBottom: 16, textAlign: 'left' }}>작업의뢰서 | 기획</h2>
+          <button type="button" onClick={handleTempSave} style={{ padding: '8px 18px', fontSize: 15, background: '#eee', color: '#222', border: '1px solid #bbb', borderRadius: 6, cursor: 'pointer', fontWeight: 600, marginLeft: 16 }}>임시 저장</button>
+        </div>
         <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: 24 }}>
           <tbody>
             <tr>

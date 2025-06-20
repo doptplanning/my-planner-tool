@@ -31,6 +31,7 @@ export default function DesignPage() {
   const imagesColor = formData.design.imagesColor;
   const referenceLinks = formData.design.referenceLinks;
   const [referenceEditMode, setReferenceEditMode] = useState(referenceLinks.map(() => true));
+  const user = JSON.parse(localStorage.getItem('user') || '{}');
 
   useEffect(() => {
     setPreviews(images.map(img => (img instanceof File ? URL.createObjectURL(img) : img)));
@@ -41,6 +42,24 @@ export default function DesignPage() {
     };
     // eslint-disable-next-line
   }, [images.length, imagesColor.length]);
+
+  useEffect(() => {
+    if (user.email) {
+      const temp = localStorage.getItem(`temp_DesignPage_${user.email}`);
+      if (temp) {
+        if (window.confirm('임시 저장된 데이터가 있습니다. 불러오시겠습니까?')) {
+          setFormData((prev: any) => ({ ...prev, design: JSON.parse(temp) }));
+        }
+      }
+    }
+  }, []);
+
+  const handleTempSave = () => {
+    if (user.email) {
+      localStorage.setItem(`temp_DesignPage_${user.email}`, JSON.stringify(formData.design));
+      alert('임시 저장되었습니다!');
+    }
+  };
 
   // 파일 업로드 핸들러
   const handleFiles = (files: FileList | null) => {
@@ -115,7 +134,10 @@ export default function DesignPage() {
   return (
     <div style={{ width: '100vw', minHeight: '100vh', background: '#f7f7f7', display: 'flex', justifyContent: 'center', alignItems: 'flex-start', paddingTop: 60 }}>
       <div style={{ width: '100%', maxWidth: 950, background: '#fff', borderRadius: 12, boxShadow: '0 2px 16px rgba(0,0,0,0.08)', padding: 36, marginTop: 32, boxSizing: 'border-box' }}>
-        <h2 style={{ marginBottom: 16, textAlign: 'left' }}>작업의뢰서 | 디자인</h2>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
+          <h2 style={{ marginBottom: 16, textAlign: 'left' }}>작업의뢰서 | 디자인</h2>
+          <button type="button" onClick={handleTempSave} style={{ padding: '8px 18px', fontSize: 15, background: '#eee', color: '#222', border: '1px solid #bbb', borderRadius: 6, cursor: 'pointer', fontWeight: 600, marginLeft: 16 }}>임시 저장</button>
+        </div>
         <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: 24, fontSize: 15 }}>
           <tbody>
             {/* 디자인 컨셉 방향 행 */}

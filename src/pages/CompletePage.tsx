@@ -72,6 +72,13 @@ export default function CompletePage() {
       return;
     }
 
+    // === 유저별 formData 저장 ===
+    const user = JSON.parse(localStorage.getItem('user') || '{}');
+    if (user.email) {
+      localStorage.setItem(`formData_${user.email}`, JSON.stringify(finalFormData));
+    }
+    // === 유저별 formData 저장 끝 ===
+
     async function fetchBrief() {
       const summaryText = makeSummaryText(finalFormData);
       
