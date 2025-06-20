@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 // @ts-ignore: no types for html2pdf.js
 import html2pdf from 'html2pdf.js/dist/html2pdf.min.js';
 

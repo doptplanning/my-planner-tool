@@ -2,7 +2,7 @@ import { createContext, useContext, useState, useEffect } from 'react';
 import type { ReactNode } from 'react';
 
 // 사용자 권한 타입 정의
-export type UserRole = 'admin' | 'staff' | 'client';
+export type UserRole = 'admin' | 'staff' | 'client' | 'planner' | 'viewer';
 
 // 사용자 정보 타입
 interface User {
@@ -20,12 +20,6 @@ interface AuthContextType {
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
-
-function getRoleByEmail(email: string): UserRole {
-  if (email === 'admin@dopt.com') return 'admin';
-  if (email.endsWith('@dopt.com')) return 'planner';
-  return 'viewer';
-}
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
