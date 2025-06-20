@@ -16,6 +16,7 @@ import DesignPage from './pages/DesignPage';
 import ShootingPage from './pages/ShootingPage';
 import SummaryPage from './pages/SummaryPage';
 import CompletePage from './pages/CompletePage';
+import AdminPage from './pages/AdminPage';
 
 const Navbar: React.FC = () => {
   const { user, logout } = useAuth();
@@ -46,6 +47,12 @@ const Navbar: React.FC = () => {
       </div>
       <div style={{ display: 'flex', alignItems: 'center' }}>
         <span style={{ color: '#fff', marginRight: 16 }}>{user.email} ({user.role})</span>
+        {user.role === 'admin' && (
+          <button onClick={() => navigate('/admin')} style={{ background: '#fff', color: '#111', border: 'none', borderRadius: 4, padding: '8px 18px', fontWeight: 600, cursor: 'pointer', marginRight: 8 }}>관리자</button>
+        )}
+        {user.role === 'staff' && (
+          <button onClick={() => navigate('/history')} style={{ background: '#fff', color: '#111', border: 'none', borderRadius: 4, padding: '8px 18px', fontWeight: 600, cursor: 'pointer', marginRight: 8 }}>히스토리</button>
+        )}
         <button onClick={handleLogout} style={{ background: '#fff', color: '#111', border: 'none', borderRadius: 4, padding: '8px 18px', fontWeight: 600, cursor: 'pointer' }}>로그아웃</button>
       </div>
     </div>
@@ -82,7 +89,7 @@ function AppRoutes() {
             </ProtectedRoute>
           } />
           <Route path="/history" element={
-            <ProtectedRoute requiredRole="planner">
+            <ProtectedRoute requiredRole="staff">
               <HistoryPage />
             </ProtectedRoute>
           } />
@@ -119,6 +126,11 @@ function AppRoutes() {
           <Route path="/complete" element={
             <ProtectedRoute>
               <CompletePage />
+            </ProtectedRoute>
+          } />
+          <Route path="/admin" element={
+            <ProtectedRoute requiredRole="admin">
+              <AdminPage />
             </ProtectedRoute>
           } />
         </Routes>

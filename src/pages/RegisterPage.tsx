@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 
 function saveUser(email: string, password: string) {
   const users = JSON.parse(localStorage.getItem('users') || '[]');
-  users.push({ email, password });
+  users.push({ email, password, role: 'client' });
   localStorage.setItem('users', JSON.stringify(users));
 }
 

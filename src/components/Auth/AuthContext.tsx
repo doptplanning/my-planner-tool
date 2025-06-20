@@ -2,11 +2,12 @@ import { createContext, useContext, useState, useEffect } from 'react';
 import type { ReactNode } from 'react';
 
 // 사용자 권한 타입 정의
-export type UserRole = 'admin' | 'planner' | 'viewer';
+export type UserRole = 'admin' | 'staff' | 'client';
 
 // 사용자 정보 타입
 interface User {
   email: string;
+  password: string;
   role: UserRole;
 }
 
@@ -45,8 +46,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     const user = users.find((u: any) => u.email === email);
     if (!user) throw new Error('존재하지 않는 이메일입니다.');
     if (user.password !== password) throw new Error('비밀번호가 올바르지 않습니다.');
-    const role = getRoleByEmail(email);
-    const userObj = { email, role };
+    const userObj = { email, password: user.password, role: user.role };
     setUser(userObj);
     localStorage.setItem('user', JSON.stringify(userObj));
   };
