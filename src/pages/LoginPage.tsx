@@ -14,8 +14,8 @@ export default function LoginPage() {
     try {
       await login(email, password);
       navigate('/upload');
-    } catch (err) {
-      setError('로그인에 실패했습니다.');
+    } catch (err: any) {
+      setError(err?.message || '로그인에 실패했습니다.');
     }
   };
 

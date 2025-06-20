@@ -42,8 +42,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   // 로그인 함수: localStorage users에서 인증
   const login = async (email: string, password: string) => {
     const users = JSON.parse(localStorage.getItem('users') || '[]');
-    const found = users.find((u: any) => u.email === email && u.password === password);
-    if (!found) throw new Error('이메일 또는 비밀번호가 올바르지 않습니다.');
+    const user = users.find((u: any) => u.email === email);
+    if (!user) throw new Error('존재하지 않는 이메일입니다.');
+    if (user.password !== password) throw new Error('비밀번호가 올바르지 않습니다.');
     const role = getRoleByEmail(email);
     const userObj = { email, role };
     setUser(userObj);
