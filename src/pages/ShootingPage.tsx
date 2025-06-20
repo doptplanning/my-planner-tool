@@ -1,10 +1,8 @@
 import React, { useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { useFormData } from '../components/FormDataContext';
 
 export default function ShootingPage() {
   const { formData, setFormData } = useFormData();
-  const navigate = useNavigate();
   const [previews, setPreviews] = React.useState<string[]>([]);
   const concept = formData.shooting.concept;
   const reference = formData.shooting.reference;
