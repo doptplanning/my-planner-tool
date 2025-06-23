@@ -21,7 +21,8 @@ export default function RegisterPage() {
       return;
     }
     try {
-      const res = await fetch('/api/register', {
+      const API_BASE = import.meta.env.VITE_API_URL || 'https://my-planner-tool.onrender.com';
+      const res = await fetch(`${API_BASE}/api/register`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password }),
