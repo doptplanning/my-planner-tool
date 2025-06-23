@@ -7,8 +7,9 @@ export type UserRole = 'admin' | 'staff' | 'client' | 'planner' | 'viewer';
 // 사용자 정보 타입
 interface User {
   email: string;
-  password: string;
+  password?: string;
   role: UserRole;
+  token?: string;
 }
 
 // AuthContext 타입
@@ -34,20 +35,26 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     setIsLoading(false);
   }, []);
 
-  // 로그인 함수: localStorage users에서 인증
+  // 로그인 함수: 백엔드 API에서 인증
   const login = async (email: string, password: string) => {
-    const users = JSON.parse(localStorage.getItem('users') || '[]');
-    const user = users.find((u: any) => u.email === email);
-    if (!user) throw new Error('존재하지 않는 이메일입니다.');
-    if (user.password !== password) throw new Error('비밀번호가 올바르지 않습니다.');
-    const userObj = { email, password: user.password, role: user.role };
+    const API_BASE = import.meta.env.VITE_API_URL || 'https://my-planner-tool.onrender.com';
+    const res = await fetch(`${API_BASE}/api/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || '로그인 실패');
+    const userObj = { email: data.email, role: data.role, token: data.token };
     setUser(userObj);
     localStorage.setItem('user', JSON.stringify(userObj));
+    localStorage.setItem('token', data.token);
   };
 
   const logout = () => {
     setUser(null);
     localStorage.removeItem('user');
+    localStorage.removeItem('token');
   };
 
   return (
