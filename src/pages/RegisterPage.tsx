@@ -1,17 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
-function saveUser(email: string, password: string) {
-  const users = JSON.parse(localStorage.getItem('users') || '[]');
-  users.push({ email, password, role: 'client' });
-  localStorage.setItem('users', JSON.stringify(users));
-}
-
-function isEmailExists(email: string) {
-  const users = JSON.parse(localStorage.getItem('users') || '[]');
-  return users.some((u: any) => u.email === email);
-}
-
 export default function RegisterPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -20,7 +9,7 @@ export default function RegisterPage() {
   const [success, setSuccess] = useState(false);
   const navigate = useNavigate();
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     if (!email || !password || !password2) {
@@ -31,13 +20,22 @@ export default function RegisterPage() {
       setError('비밀번호가 일치하지 않습니다.');
       return;
     }
-    if (isEmailExists(email)) {
-      setError('이미 가입된 이메일입니다.');
-      return;
+    try {
+      const res = await fetch('/api/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setError(data.error || '회원가입 실패');
+        return;
+      }
+      setSuccess(true);
+      setTimeout(() => navigate('/login'), 1200);
+    } catch (err) {
+      setError('서버 오류가 발생했습니다.');
     }
-    saveUser(email, password);
-    setSuccess(true);
-    setTimeout(() => navigate('/login'), 1200);
   };
 
   return (
