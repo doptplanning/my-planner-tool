@@ -5,51 +5,6 @@ import ReactMarkdown from 'react-markdown';
 import rehypeRaw from 'rehype-raw';
 import remarkGfm from 'remark-gfm';
 
-function makeSummaryText(formData: any) {
-  // formData를 AI가 이해하기 쉬운 구조적인 텍스트로 변환
-  let text = '다음은 상세페이지 기획을 위한 사용자 입력 데이터입니다.\n\n';
-
-  text += `## 1. 기본 정보\n`;
-  Object.entries(formData.upload).forEach(([k, v]) => {
-    if (v) text += `- ${k}: ${v}\n`;
-  });
-
-  text += `\n## 2. 제품스펙\n`;
-  Object.entries(formData.productSpec).forEach(([k, v]) => {
-    if (v) text += `- ${k}: ${v}\n`;
-  });
-
-  if (formData.plan) {
-    text += `\n## 3. 기획 의도\n- ${formData.plan}\n`;
-  }
-
-  if (formData.usp && formData.usp.some((u: any) => u.function || u.desc)) {
-    text += `\n## 4. 주요 특장점 (USP)\n`;
-    formData.usp.forEach((u: any) => {
-      if (u.function || u.desc) text += `- ${u.function || '특장점'}: ${u.desc || '설명 없음'}\n`;
-    });
-  }
-
-  if (formData.design && (formData.design.values?.length > 0 || formData.design.referenceLinks?.length > 0)) {
-    text += `\n## 5. 디자인 컨셉\n`;
-    if (formData.design.values?.length > 0) {
-        text += '### 선호하는 디자인 키워드\n'
-        formData.design.values.forEach((v: string) => { text += `- ${v}\n`; });
-    }
-    if (formData.design.referenceLinks?.length > 0 && formData.design.referenceLinks[0]) {
-        text += `\n### 참고 레퍼런스 링크\n- ${formData.design.referenceLinks.join('\n- ')}\n`;
-    }
-  }
-
-  if (formData.shooting && (formData.shooting.concept || formData.shooting.reference)) {
-    text += `\n## 6. 촬영 컨셉\n`;
-    if(formData.shooting.concept) text += `- 컨셉: ${formData.shooting.concept}\n`;
-    if(formData.shooting.reference) text += `- 레퍼런스: ${formData.shooting.reference}\n`;
-  }
-
-  return text;
-}
-
 function toBase64(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();

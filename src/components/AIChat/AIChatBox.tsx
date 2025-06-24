@@ -1,10 +1,5 @@
 import React, { useState, useEffect } from 'react';
 
-interface Message {
-  role: 'user' | 'ai';
-  content: string;
-}
-
 interface QAItem {
   question: string;
   answer: string;
