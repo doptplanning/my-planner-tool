@@ -80,8 +80,66 @@ export default function CompletePage() {
     // === 유저별 formData 저장 끝 ===
 
     async function fetchBrief() {
-      const summaryText = makeSummaryText(finalFormData);
-      
+      // 기존 summaryText 대신, 대화 내역(messages) 배열을 만들어 전달
+      const messages = [];
+      // 예시: 각 주요 항목을 질문/답변 쌍으로 messages에 추가 (실제 대화 내역이 있다면 그걸 사용)
+      if (finalFormData.upload) {
+        Object.entries(finalFormData.upload).forEach(([k, v]) => {
+          if (v) {
+            messages.push({ role: 'user', content: `${k} 알려줘` });
+            messages.push({ role: 'ai', content: v });
+          }
+        });
+      }
+      if (finalFormData.productSpec) {
+        Object.entries(finalFormData.productSpec).forEach(([k, v]) => {
+          if (v) {
+            messages.push({ role: 'user', content: `${k} 스펙은?` });
+            messages.push({ role: 'ai', content: v });
+          }
+        });
+      }
+      if (finalFormData.plan) {
+        messages.push({ role: 'user', content: '개발/판매 동기 알려줘' });
+        messages.push({ role: 'ai', content: finalFormData.plan });
+      }
+      if (finalFormData.usp) {
+        finalFormData.usp.forEach((u: any, i: number) => {
+          if (u.function || u.desc) {
+            messages.push({ role: 'user', content: `USP${i + 1} 알려줘` });
+            messages.push({ role: 'ai', content: `${u.function || ''} ${u.desc || ''}` });
+          }
+        });
+      }
+      if (finalFormData.design) {
+        if (finalFormData.design.values?.length > 0) {
+          finalFormData.design.values.forEach((v: string, i: number) => {
+            if (v) {
+              messages.push({ role: 'user', content: `디자인 컨셉${i + 1} 알려줘` });
+              messages.push({ role: 'ai', content: v });
+            }
+          });
+        }
+        if (finalFormData.design.referenceLinks?.length > 0) {
+          finalFormData.design.referenceLinks.forEach((l: string, i: number) => {
+            if (l) {
+              messages.push({ role: 'user', content: `디자인 참고 레퍼런스${i + 1} 알려줘` });
+              messages.push({ role: 'ai', content: l });
+            }
+          });
+        }
+      }
+      if (finalFormData.shooting) {
+        if (finalFormData.shooting.concept) {
+          messages.push({ role: 'user', content: '촬영 컨셉 알려줘' });
+          messages.push({ role: 'ai', content: finalFormData.shooting.concept });
+        }
+        if (finalFormData.shooting.reference) {
+          messages.push({ role: 'user', content: '촬영 참고 레퍼런스 알려줘' });
+          messages.push({ role: 'ai', content: finalFormData.shooting.reference });
+        }
+      }
+
       const imagePromises = (finalFormData.shooting.images || []).map((file: File) => toBase64(file));
       const imageBase64s = await Promise.all(imagePromises);
 
@@ -89,7 +147,7 @@ export default function CompletePage() {
         const res = await fetch('/api/gpt-brief', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ summary: summaryText, images: imageBase64s }),
+          body: JSON.stringify({ summary: messages, images: imageBase64s }),
         });
         const data = await res.json();
         setBrief(data.brief || '브리프 생성 실패');
