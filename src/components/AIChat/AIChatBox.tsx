@@ -39,7 +39,7 @@ const AIChatBox: React.FC<AIChatBoxProps> = ({ onAIResult, width = 340, height =
       const data = await res.json();
       if (data.error) {
         setError({ message: data.error, raw: data.raw });
-        throw new Error(data.error);
+        return;
       }
       setError(null);
       let aiMsg = data.brief || JSON.stringify(data);
@@ -55,7 +55,7 @@ const AIChatBox: React.FC<AIChatBoxProps> = ({ onAIResult, width = 340, height =
         }
       ]);
     } catch (err: any) {
-      setError({ message: err.message || '서버 오류', raw: err.raw });
+      setError({ message: err.message || '서버 오류' });
     } finally {
       setLoading(false);
     }
