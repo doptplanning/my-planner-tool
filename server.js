@@ -117,5 +117,16 @@ app.post('/api/register', async (req, res) => {
   res.json({ success: true });
 });
 
+// 로그인
+app.post('/api/login', async (req, res) => {
+  const { email, password } = req.body;
+  const user = await User.findOne({ email });
+  if (!user || !(await bcrypt.compare(password, user.password))) {
+    return res.status(400).json({ error: '이메일 또는 비밀번호 오류' });
+  }
+  const token = jwt.sign({ id: user._id, email: user.email, role: user.role }, process.env.JWT_SECRET, { expiresIn: '7d' });
+  res.json({ token, email: user.email, role: user.role });
+});
+
 const PORT = process.env.PORT || 3001;
 app.listen(PORT, () => console.log(`Proxy server running on port ${PORT}`)); 
