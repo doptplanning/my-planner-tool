@@ -21,14 +21,12 @@ const AIChatBox: React.FC<AIChatBoxProps> = ({ onAIResult, width = 340, height =
   const [messages, setMessages] = useState<{ role: 'user' | 'ai'; content: string }[]>([{ role: 'ai', content: greeting }]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<{ message: string, raw?: string } | null>(null);
   const [qaList, setQaList] = useState<QAItem[]>([]);
 
   const handleSend = async () => {
     if (!input.trim() || loading) return;
     setMessages(prev => [...prev, { role: 'user', content: input }]);
     setLoading(true);
-    setError(null);
     try {
       const API_BASE = import.meta.env.VITE_API_URL || 'https://my-planner-tool.onrender.com';
       const res = await fetch(`${API_BASE}/api/gpt-brief`, {
@@ -38,14 +36,11 @@ const AIChatBox: React.FC<AIChatBoxProps> = ({ onAIResult, width = 340, height =
       });
       const data = await res.json();
       if (data.error) {
-        setError({ message: data.error });
-        if (data.raw) {
-          setMessages(prev => [...prev, { role: 'ai', content: data.raw }]);
-        }
+        let aiMsg = data.raw || JSON.stringify(data);
+        setMessages(prev => [...prev, { role: 'ai', content: aiMsg }]);
         setInput('');
         return;
       }
-      setError(null);
       let aiMsg = data.brief || JSON.stringify(data);
       setMessages(prev => [...prev, { role: 'ai', content: aiMsg }]);
       setInput('');
@@ -59,7 +54,9 @@ const AIChatBox: React.FC<AIChatBoxProps> = ({ onAIResult, width = 340, height =
         }
       ]);
     } catch (err: any) {
-      setError({ message: err.message || '서버 오류' });
+      let aiMsg = err.message || '서버 오류';
+      setMessages(prev => [...prev, { role: 'ai', content: aiMsg }]);
+      setInput('');
     } finally {
       setLoading(false);
     }
@@ -109,7 +106,7 @@ const AIChatBox: React.FC<AIChatBoxProps> = ({ onAIResult, width = 340, height =
         <input
           type="text"
           value={input}
-          onChange={e => { setInput(e.target.value); setError(null); }}
+          onChange={e => { setInput(e.target.value); }}
           onKeyDown={e => { if (e.key === 'Enter') handleSend(); }}
           placeholder="여기에 자유롭게 입력하세요"
           style={{ flex: 1, padding: 10, borderRadius: 6, border: '1px solid #bbb', fontSize: 15 }}
