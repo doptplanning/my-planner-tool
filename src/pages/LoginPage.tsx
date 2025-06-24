@@ -8,19 +8,15 @@ export default function LoginPage() {
   const [error, setError] = useState('');
   const { login } = useAuth();
   const navigate = useNavigate();
-  const [loading, setLoading] = useState(false);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
-    setLoading(true);
     try {
       await login(email, password);
       navigate('/ai-interview');
     } catch (err: any) {
       setError(err.message || '로그인 실패');
-    } finally {
-      setLoading(false);
     }
   };
 

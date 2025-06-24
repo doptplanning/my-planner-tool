@@ -4,13 +4,11 @@ import AIChatBox from '../components/AIChat/AIChatBox';
 
 const AIInterviewPage: React.FC = () => {
   const [pdfUrl, setPdfUrl] = useState<string | null>(null);
-  const [aiResult, setAIResult] = useState<any>(null);
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
   // AI 대화 종료 후 PDF 생성 요청
   const handleAIResult = async (data: any) => {
-    setAIResult(data);
     setLoading(true);
     try {
       const API_BASE = import.meta.env.VITE_API_URL || 'https://my-planner-tool.onrender.com';

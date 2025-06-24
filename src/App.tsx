@@ -1,6 +1,5 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom';
-import UploadPage from './pages/UploadPage';
 import BriefEditPage from './pages/BriefEditPage';
 import StructureEditPage from './pages/StructureEditPage';
 import FigmaSyncPage from './pages/FigmaSyncPage';
