@@ -130,5 +130,24 @@ app.post('/api/login', async (req, res) => {
   res.json({ token, email: user.email, role: user.role });
 });
 
+// JWT 인증 미들웨어
+function auth(req, res, next) {
+  const token = req.headers.authorization?.split(' ')[1];
+  if (!token) return res.status(401).json({ error: 'No token' });
+  try {
+    req.user = jwt.verify(token, process.env.JWT_SECRET);
+    next();
+  } catch {
+    res.status(401).json({ error: 'Invalid token' });
+  }
+}
+
+// 사용자 목록 (관리자만)
+app.get('/api/users', auth, async (req, res) => {
+  if (req.user.role !== 'admin') return res.status(403).json({ error: '권한 없음' });
+  const users = await User.find({}, '-password');
+  res.json(users);
+});
+
 const PORT = process.env.PORT || 3001;
 app.listen(PORT, () => console.log(`Proxy server running on port ${PORT}`)); 
