@@ -22,7 +22,6 @@ const AIChatBox: React.FC<AIChatBoxProps> = ({ onAIResult, width = 340, height =
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<{ message: string, raw?: string } | null>(null);
-  const [raw, setRaw] = useState<string | null>(null);
   const [qaList, setQaList] = useState<QAItem[]>([]);
 
   const handleSend = async () => {
@@ -30,7 +29,6 @@ const AIChatBox: React.FC<AIChatBoxProps> = ({ onAIResult, width = 340, height =
     setMessages(prev => [...prev, { role: 'user', content: input }]);
     setLoading(true);
     setError(null);
-    setRaw(null);
     try {
       const API_BASE = import.meta.env.VITE_API_URL || 'https://my-planner-tool.onrender.com';
       const res = await fetch(`${API_BASE}/api/gpt-brief`, {
