@@ -57,6 +57,8 @@ app.post('/api/gpt-brief', async (req, res) => {
 
 대화가 끝나면 아래 JSON 포맷에 맞춰 모든 정보를 정리해서 출력해.
 
+**아무런 설명, 인사, 코드블록 없이 반드시 아래 JSON만 반환하세요.**
+
 [작업의뢰서 항목/예시/가이드라인]
 1. 상세페이지 사이즈 및 노출 플랫폼 (예: 가로 860픽셀, 네이버 스마트스토어, 쿠팡 등)
 2. 제품명/모델명/구성 (예: ○○○보풀제거기 / XES1098 / 본품, C타입 충전선, 청소솔, 해파필터)
@@ -116,13 +118,25 @@ app.post('/api/gpt-brief', async (req, res) => {
     if (data.error) {
         console.error('OpenAI API Error:', data.error);
     }
-    // 응답에서 JSON 파싱 시도
+    // 응답에서 JSON 파싱 시도 (코드블록, 자연어 혼합 등 모두 처리)
     let aiResult = {};
     try {
-      // OpenAI 응답이 코드블록(```json ... ```)으로 감싸져 있을 수 있으므로 정제
       const content = data.choices?.[0]?.message?.content || '';
-      const jsonMatch = content.match(/```json([\s\S]*?)```/);
-      const jsonString = jsonMatch ? jsonMatch[1] : content;
+      // 코드블록(```json ... ```) 또는 그냥 ``` ... ``` 또는 자연어+JSON 혼합 모두 처리
+      let jsonString = content;
+      // 1. ```json ... ```
+      let match = content.match(/```json[\s\S]*?({[\s\S]*})[\s\S]*?```/);
+      if (match && match[1]) jsonString = match[1];
+      // 2. ``` ... ```
+      else {
+        match = content.match(/```[\s\S]*?({[\s\S]*})[\s\S]*?```/);
+        if (match && match[1]) jsonString = match[1];
+      }
+      // 3. 자연어+JSON 혼합 (처음 나오는 { ... } 추출)
+      if (!match || !match[1]) {
+        match = content.match(/({[\s\S]*})/);
+        if (match && match[1]) jsonString = match[1];
+      }
       aiResult = JSON.parse(jsonString);
     } catch (e) {
       aiResult = { error: 'AI 응답 파싱 실패', raw: data.choices?.[0]?.message?.content || '' };
