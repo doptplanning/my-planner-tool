@@ -1,6 +1,7 @@
 import React, { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useFormData } from '../components/FormDataContext';
+import AIChatBox from '../components/AIChat/AIChatBox';
 
 export default function UploadPage() {
   const { formData, setFormData } = useFormData();
@@ -40,12 +41,32 @@ export default function UploadPage() {
     }
   };
 
+  // AI 대화 결과로 폼 자동 채우기
+  const handleAIResult = (data: any) => {
+    // data.brief 등에서 필요한 정보를 추출해 폼에 반영 (예시)
+    // 실제로는 AI 응답 포맷에 맞게 파싱 필요
+    if (data && typeof data === 'object') {
+      setFormData(prev => ({
+        ...prev,
+        upload: {
+          ...prev.upload,
+          // 예시: AI가 아래 필드명을 맞춰서 반환한다고 가정
+          sizeWidth: data.sizeWidth || prev.upload.sizeWidth,
+          sizeSites: data.sizeSites || prev.upload.sizeSites,
+          product: data.product || prev.upload.product,
+          target: data.target || prev.upload.target,
+          price: data.price || prev.upload.price,
+        }
+      }));
+    }
+  };
+
   return (
     <div style={{
       width: '100vw',
       height: 'calc(100vh - 60px)',
       display: 'flex',
-      alignItems: 'center',
+      alignItems: 'flex-start',
       justifyContent: 'center',
       background: '#fff',
       zIndex: 10,
@@ -155,6 +176,10 @@ export default function UploadPage() {
             6개 중 1페이지
           </button>
         </form>
+      </div>
+      {/* AI 대화창 우측에 배치 */}
+      <div style={{ marginLeft: 32, marginTop: 32 }}>
+        <AIChatBox onAIResult={handleAIResult} />
       </div>
     </div>
   );
