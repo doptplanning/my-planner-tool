@@ -81,11 +81,6 @@ const AIChatBox: React.FC<AIChatBoxProps> = ({ onAIResult, width = 340, height =
           </div>
         ))}
         {loading && <div style={{ color: '#888', fontSize: 14 }}>AI가 답변 중...</div>}
-        {error && (
-          <div style={{ color: 'red', fontSize: 14 }}>
-            {error.message || 'AI 응답 파싱 실패'}
-          </div>
-        )}
       </div>
       {qaList.length > 0 && (
         <div style={{ margin: '16px 0', background: '#fff', borderRadius: 8, boxShadow: '0 1px 4px rgba(0,0,0,0.04)', padding: 12 }}>
