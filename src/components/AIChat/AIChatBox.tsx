@@ -21,7 +21,7 @@ const AIChatBox: React.FC<AIChatBoxProps> = ({ onAIResult, width = 340, height =
   const [messages, setMessages] = useState<{ role: 'user' | 'ai'; content: string }[]>([{ role: 'ai', content: greeting }]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<{ message: string, raw?: string } | null>(null);
   const [raw, setRaw] = useState<string | null>(null);
   const [qaList, setQaList] = useState<QAItem[]>([]);
 
@@ -40,11 +40,10 @@ const AIChatBox: React.FC<AIChatBoxProps> = ({ onAIResult, width = 340, height =
       });
       const data = await res.json();
       if (data.error) {
-        setError(data.error);
-        setRaw(data.raw || null);
+        setError({ message: data.error, raw: data.raw });
         throw new Error(data.error);
       }
-      setRaw(null);
+      setError(null);
       let aiMsg = data.brief || JSON.stringify(data);
       setMessages(prev => [...prev, { role: 'ai', content: aiMsg }]);
       setInput('');
@@ -58,7 +57,7 @@ const AIChatBox: React.FC<AIChatBoxProps> = ({ onAIResult, width = 340, height =
         }
       ]);
     } catch (err: any) {
-      setError(err.message || '서버 오류');
+      setError({ message: err.message || '서버 오류' });
     } finally {
       setLoading(false);
     }
@@ -82,10 +81,10 @@ const AIChatBox: React.FC<AIChatBoxProps> = ({ onAIResult, width = 340, height =
         {loading && <div style={{ color: '#888', fontSize: 14 }}>AI가 답변 중...</div>}
         {error && (
           <div style={{ color: 'red', fontSize: 14 }}>
-            {error}
-            {raw && (
+            {error.message}
+            {error.raw && (
               <pre style={{ color: '#888', fontSize: 12, marginTop: 4, background: '#f3f3f3', padding: 8, borderRadius: 4 }}>
-                {raw}
+                {error.raw}
               </pre>
             )}
           </div>
