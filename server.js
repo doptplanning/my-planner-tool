@@ -9,7 +9,9 @@ const bcrypt = require('bcryptjs');
 const app = express();
 app.use(cors({
   origin: 'https://my-planner-tool.vercel.app',
-  credentials: true
+  credentials: true,
+  methods: ['GET', 'POST', 'PATCH', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
 }));
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
