@@ -55,9 +55,15 @@ app.post('/api/gpt-brief', async (req, res) => {
 클라이언트가 여러 정보를 한 번에 입력하거나, 순서를 바꿔도 
 각 항목에 맞게 자동으로 분류/정리하고, 부족한 정보만 추가로 질문해.
 
-대화가 끝나면 아래 JSON 포맷에 맞춰 모든 정보를 정리해서 출력해.
+대화가 끝나면 아래 JSON 배열 포맷에 맞춰 지금까지의 Q&A(질문/답변)와 각 항목별 AI 추천/의견(aiComment)을 정리해서 출력해.
 
 **아무런 설명, 인사, 코드블록 없이 반드시 아래 JSON만 반환하세요.**
+
+[Q&A+추천의견 결과물 예시]
+[
+  { "question": "제품명/모델명/구성은?", "answer": "○○○보풀제거기 / XES1098 / 본품, C타입 충전선, 청소솔, 해파필터", "aiComment": "구성품을 더 구체적으로 적어주세요" },
+  { "question": "주요 타겟은?", "answer": "2030 MZ세대, 남성층 등", "aiComment": "연령대 외에 성별도 알려주시면 좋아요" }
+]
 
 [작업의뢰서 항목/예시/가이드라인]
 1. 상세페이지 사이즈 및 노출 플랫폼 (예: 가로 860픽셀, 네이버 스마트스토어, 쿠팡 등)
@@ -72,23 +78,6 @@ app.post('/api/gpt-brief', async (req, res) => {
 10. 디자인 참고 레퍼런스 (링크/이미지, 이유)
 11. 촬영 컨셉 방향성
 12. 촬영 참고 레퍼런스 (링크/이미지, 이유)
-
-[결과물 포맷]
-{
-  "sizeWidth": "",
-  "sizeSites": "",
-  "product": "",
-  "target": "",
-  "price": "",
-  "usps": [ { "feature": "", "desc": "" } ],
-  "motivation": "",
-  "spec": { "color": "", "material": "", "size": "", "power": "", "importer": "", "manufacturer": "", "country": "", "kc": "", "components": "", "asPolicy": "" },
-  "designConcept": "",
-  "mainColor": "",
-  "designReference": { "link": "", "reason": "" },
-  "shootingConcept": "",
-  "shootingReference": { "link": "", "reason": "" }
-}
 `;
 
   try {
@@ -122,19 +111,15 @@ app.post('/api/gpt-brief', async (req, res) => {
     let aiResult = {};
     try {
       const content = data.choices?.[0]?.message?.content || '';
-      // 코드블록(```json ... ```) 또는 그냥 ``` ... ``` 또는 자연어+JSON 혼합 모두 처리
       let jsonString = content;
-      // 1. ```json ... ```
-      let match = content.match(/```json[\s\S]*?({[\s\S]*})[\s\S]*?```/);
+      let match = content.match(/```json[\s\S]*?(\[?[\s\S]*\]?)[\s\S]*?```/);
       if (match && match[1]) jsonString = match[1];
-      // 2. ``` ... ```
       else {
-        match = content.match(/```[\s\S]*?({[\s\S]*})[\s\S]*?```/);
+        match = content.match(/```[\s\S]*?(\[?[\s\S]*\]?)[\s\S]*?```/);
         if (match && match[1]) jsonString = match[1];
       }
-      // 3. 자연어+JSON 혼합 (처음 나오는 { ... } 추출)
       if (!match || !match[1]) {
-        match = content.match(/({[\s\S]*})/);
+        match = content.match(/(\[?[\s\S]*\]?)/);
         if (match && match[1]) jsonString = match[1];
       }
       aiResult = JSON.parse(jsonString);

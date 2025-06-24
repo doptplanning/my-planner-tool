@@ -5,6 +5,12 @@ interface Message {
   content: string;
 }
 
+interface QAItem {
+  question: string;
+  answer: string;
+  aiComment?: string;
+}
+
 interface AIChatBoxProps {
   onAIResult?: (result: any) => void;
   width?: number | string;
@@ -20,6 +26,7 @@ const AIChatBox: React.FC<AIChatBoxProps> = ({ onAIResult, width = 340, height =
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [qaList, setQaList] = useState<QAItem[]>([]);
 
   const handleSend = async () => {
     if (!input.trim() || loading) return;
@@ -36,9 +43,19 @@ const AIChatBox: React.FC<AIChatBoxProps> = ({ onAIResult, width = 340, height =
       const data = await res.json();
       if (data.error) throw new Error(data.error);
       // AI가 자유롭게 답변/분류/정리/추가 질문
-      setMessages(prev => [...prev, { role: 'ai', content: data.brief || JSON.stringify(data) }]);
+      let aiMsg = data.brief || JSON.stringify(data);
+      setMessages(prev => [...prev, { role: 'ai', content: aiMsg }]);
       setInput('');
       if (onAIResult) onAIResult(data);
+      // Q&A 표에 추가 (AI 추천의견이 있으면 함께)
+      setQaList(prev => [
+        ...prev,
+        {
+          question: input,
+          answer: aiMsg,
+          aiComment: data.aiComment || (data.recommendation ?? undefined)
+        }
+      ]);
     } catch (err: any) {
       setError(err.message || '서버 오류');
     } finally {
@@ -59,6 +76,29 @@ const AIChatBox: React.FC<AIChatBoxProps> = ({ onAIResult, width = 340, height =
         {loading && <div style={{ color: '#888', fontSize: 14 }}>AI가 답변 중...</div>}
         {error && <div style={{ color: 'red', fontSize: 14 }}>{error}</div>}
       </div>
+      {qaList.length > 0 && (
+        <div style={{ margin: '16px 0', background: '#fff', borderRadius: 8, boxShadow: '0 1px 4px rgba(0,0,0,0.04)', padding: 12 }}>
+          <div style={{ fontWeight: 600, marginBottom: 8, color: '#222' }}>질문/답변 & AI 추천의견</div>
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 14 }}>
+            <thead>
+              <tr style={{ background: '#f3f4f6' }}>
+                <th style={{ padding: 6, border: '1px solid #eee' }}>질문</th>
+                <th style={{ padding: 6, border: '1px solid #eee' }}>답변</th>
+                <th style={{ padding: 6, border: '1px solid #eee' }}>AI 추천/의견</th>
+              </tr>
+            </thead>
+            <tbody>
+              {qaList.map((qa, i) => (
+                <tr key={i}>
+                  <td style={{ padding: 6, border: '1px solid #eee', verticalAlign: 'top', background: '#f9fafb' }}>{qa.question}</td>
+                  <td style={{ padding: 6, border: '1px solid #eee', verticalAlign: 'top' }}>{qa.answer}</td>
+                  <td style={{ padding: 6, border: '1px solid #eee', verticalAlign: 'top', color: '#1976d2' }}>{qa.aiComment || '-'}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
       <div style={{ display: 'flex', gap: 8 }}>
         <input
           type="text"
