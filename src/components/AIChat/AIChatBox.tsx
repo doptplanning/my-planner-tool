@@ -55,7 +55,7 @@ const AIChatBox: React.FC<AIChatBoxProps> = ({ onAIResult, width = 340, height =
         }
       ]);
     } catch (err: any) {
-      setError({ message: err.message || '서버 오류' });
+      setError({ message: err.message || '서버 오류', raw: err.raw });
     } finally {
       setLoading(false);
     }
