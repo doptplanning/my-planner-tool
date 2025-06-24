@@ -1,12 +1,5 @@
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React from 'react';
 import AIChatBox from '../components/AIChat/AIChatBox';
-
-interface QAItem {
-  question: string;
-  answer: string;
-  aiComment?: string;
-}
 
 const AIInterviewPage: React.FC = () => {
   return (
