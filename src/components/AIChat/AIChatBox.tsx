@@ -21,14 +21,16 @@ const AIChatBox: React.FC<AIChatBoxProps> = ({ onAIResult, width = 340, height =
   const [messages, setMessages] = useState<{ role: 'user' | 'ai'; content: string }[]>([{ role: 'ai', content: greeting }]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
+  const [error, setError] = useState<string | null>(null);
+  const [raw, setRaw] = useState<string | null>(null);
   const [qaList, setQaList] = useState<QAItem[]>([]);
 
   const handleSend = async () => {
     if (!input.trim() || loading) return;
     setMessages(prev => [...prev, { role: 'user', content: input }]);
     setLoading(true);
-    setError('');
+    setError(null);
+    setRaw(null);
     try {
       const API_BASE = import.meta.env.VITE_API_URL || 'https://my-planner-tool.onrender.com';
       const res = await fetch(`${API_BASE}/api/gpt-brief`, {
@@ -37,7 +39,12 @@ const AIChatBox: React.FC<AIChatBoxProps> = ({ onAIResult, width = 340, height =
         body: JSON.stringify({ summary: messages.concat({ role: 'user', content: input }) }),
       });
       const data = await res.json();
-      if (data.error) throw new Error(data.error);
+      if (data.error) {
+        setError(data.error);
+        setRaw(data.raw || null);
+        throw new Error(data.error);
+      }
+      setRaw(null);
       let aiMsg = data.brief || JSON.stringify(data);
       setMessages(prev => [...prev, { role: 'ai', content: aiMsg }]);
       setInput('');
@@ -73,7 +80,16 @@ const AIChatBox: React.FC<AIChatBoxProps> = ({ onAIResult, width = 340, height =
           </div>
         ))}
         {loading && <div style={{ color: '#888', fontSize: 14 }}>AI가 답변 중...</div>}
-        {error && <div style={{ color: 'red', fontSize: 14 }}>{error}</div>}
+        {error && (
+          <div style={{ color: 'red', fontSize: 14 }}>
+            {error}
+            {raw && (
+              <pre style={{ color: '#888', fontSize: 12, marginTop: 4, background: '#f3f3f3', padding: 8, borderRadius: 4 }}>
+                {raw}
+              </pre>
+            )}
+          </div>
+        )}
       </div>
       {qaList.length > 0 && (
         <div style={{ margin: '16px 0', background: '#fff', borderRadius: 8, boxShadow: '0 1px 4px rgba(0,0,0,0.04)', padding: 12 }}>
