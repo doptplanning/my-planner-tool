@@ -7,6 +7,9 @@ interface Message {
 
 interface AIChatBoxProps {
   onAIResult?: (result: any) => void;
+  width?: number | string;
+  height?: number | string;
+  style?: React.CSSProperties;
 }
 
 const questionList = [
@@ -35,7 +38,7 @@ const questionList = [
 const greeting =
   '안녕하세요! DOPT 기획의 귀염둥이 기획자 디옵이에요.\n제가 질문하는 걸 순차적으로 작성해주시면 작업의뢰서가 모두 완료가 된답니다. 자, 시작합니다!';
 
-const AIChatBox: React.FC<AIChatBoxProps> = ({ onAIResult }) => {
+const AIChatBox: React.FC<AIChatBoxProps> = ({ onAIResult, width = 340, height = '80vh', style }) => {
   const [messages, setMessages] = useState<Message[]>([{ role: 'ai', content: greeting }]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
@@ -95,7 +98,7 @@ const AIChatBox: React.FC<AIChatBoxProps> = ({ onAIResult }) => {
   }, []);
 
   return (
-    <div style={{ width: 340, height: '80vh', background: '#f9f9f9', borderRadius: 12, boxShadow: '0 2px 8px rgba(0,0,0,0.08)', display: 'flex', flexDirection: 'column', padding: 16 }}>
+    <div style={{ width, height, background: '#f9f9f9', borderRadius: 12, boxShadow: '0 2px 8px rgba(0,0,0,0.08)', display: 'flex', flexDirection: 'column', padding: 16, ...style }}>
       <div style={{ flex: 1, overflowY: 'auto', marginBottom: 12 }}>
         {messages.map((msg, i) => (
           <div key={i} style={{ margin: '8px 0', textAlign: msg.role === 'user' ? 'right' : 'left' }}>

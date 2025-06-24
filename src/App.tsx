@@ -17,6 +17,7 @@ import ShootingPage from './pages/ShootingPage';
 import SummaryPage from './pages/SummaryPage';
 import CompletePage from './pages/CompletePage';
 import AdminPage from './pages/AdminPage';
+import AIInterviewPage from './pages/AIInterviewPage';
 
 const Navbar: React.FC = () => {
   const { user, logout } = useAuth();
@@ -133,6 +134,7 @@ function AppRoutes() {
               <AdminPage />
             </ProtectedRoute>
           } />
+          <Route path="/ai-interview" element={<AIInterviewPage />} />
         </Routes>
       </div>
     </>

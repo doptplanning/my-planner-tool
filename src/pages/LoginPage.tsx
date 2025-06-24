@@ -8,14 +8,19 @@ export default function LoginPage() {
   const [error, setError] = useState('');
   const { login } = useAuth();
   const navigate = useNavigate();
+  const [loading, setLoading] = useState(false);
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
+    setError('');
+    setLoading(true);
     try {
       await login(email, password);
-      navigate('/upload');
+      navigate('/ai-interview');
     } catch (err: any) {
-      setError(err?.message || '로그인에 실패했습니다.');
+      setError(err.message || '로그인 실패');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -33,7 +38,7 @@ export default function LoginPage() {
         <img src="/dopt-logo.jpg" alt="D:opt Logo" style={{ width: 120, marginBottom: 32 }} />
         <div style={{ maxWidth: 400, width: '100%', background: '#fff', color: '#111', borderRadius: 12, boxShadow: '0 2px 16px rgba(0,0,0,0.18)', padding: 36 }}>
           <h2 style={{ marginBottom: 24, textAlign: 'center', color: '#111' }}>로그인</h2>
-          <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <form onSubmit={handleLogin} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
             <div>
               <label style={{ color: '#111' }}>이메일</label>
               <input type="email" value={email} onChange={e => setEmail(e.target.value)} required style={{ width: '100%', padding: 10, marginTop: 4, borderRadius: 4, border: '1px solid #ccc', background: '#fff', color: '#111' }} />
