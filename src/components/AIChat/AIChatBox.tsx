@@ -39,6 +39,9 @@ const AIChatBox: React.FC<AIChatBoxProps> = ({ onAIResult, width = 340, height =
       const data = await res.json();
       if (data.error) {
         setError({ message: data.error, raw: data.raw });
+        if (data.raw) {
+          setMessages(prev => [...prev, { role: 'ai', content: data.raw }]);
+        }
         return;
       }
       setError(null);
@@ -123,7 +126,7 @@ const AIChatBox: React.FC<AIChatBoxProps> = ({ onAIResult, width = 340, height =
         <input
           type="text"
           value={input}
-          onChange={e => setInput(e.target.value)}
+          onChange={e => { setInput(e.target.value); setError(null); }}
           onKeyDown={e => { if (e.key === 'Enter') handleSend(); }}
           placeholder="여기에 자유롭게 입력하세요"
           style={{ flex: 1, padding: 10, borderRadius: 6, border: '1px solid #bbb', fontSize: 15 }}
