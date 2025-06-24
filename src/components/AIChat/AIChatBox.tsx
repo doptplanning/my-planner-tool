@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 
 interface Message {
   role: 'user' | 'ai';
@@ -16,12 +16,13 @@ interface AIChatBoxProps {
   width?: number | string;
   height?: number | string;
   style?: React.CSSProperties;
+  onQAListChange?: (qaList: QAItem[]) => void;
 }
 
 const greeting =
   '안녕하세요! DOPT 기획의 귀염둥이 기획자 디옵이에요.\n작업의뢰서에 필요한 정보를 자유롭게 말씀해 주세요!\n(예: 여러 항목을 한 번에 입력하거나, 궁금한 점을 물어보셔도 됩니다)';
 
-const AIChatBox: React.FC<AIChatBoxProps> = ({ onAIResult, width = 340, height = '80vh', style }) => {
+const AIChatBox: React.FC<AIChatBoxProps> = ({ onAIResult, width = 340, height = '80vh', style, onQAListChange }) => {
   const [messages, setMessages] = useState<{ role: 'user' | 'ai'; content: string }[]>([{ role: 'ai', content: greeting }]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
@@ -62,6 +63,11 @@ const AIChatBox: React.FC<AIChatBoxProps> = ({ onAIResult, width = 340, height =
       setLoading(false);
     }
   };
+
+  // Q&A 표가 바뀔 때마다 부모에 전달
+  useEffect(() => {
+    if (onQAListChange) onQAListChange(qaList);
+  }, [qaList, onQAListChange]);
 
   return (
     <div style={{ width, height, background: '#f9f9f9', borderRadius: 12, boxShadow: '0 2px 8px rgba(0,0,0,0.08)', display: 'flex', flexDirection: 'column', padding: 16, ...style }}>
