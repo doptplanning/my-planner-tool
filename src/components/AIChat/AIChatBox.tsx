@@ -38,10 +38,11 @@ const AIChatBox: React.FC<AIChatBoxProps> = ({ onAIResult, width = 340, height =
       });
       const data = await res.json();
       if (data.error) {
-        setError({ message: data.error, raw: data.raw });
+        setError({ message: data.error });
         if (data.raw) {
           setMessages(prev => [...prev, { role: 'ai', content: data.raw }]);
         }
+        setInput('');
         return;
       }
       setError(null);
@@ -82,20 +83,7 @@ const AIChatBox: React.FC<AIChatBoxProps> = ({ onAIResult, width = 340, height =
         {loading && <div style={{ color: '#888', fontSize: 14 }}>AI가 답변 중...</div>}
         {error && (
           <div style={{ color: 'red', fontSize: 14 }}>
-            {typeof error === 'object' ? (error.message || '에러') : error}
-            {typeof error === 'object' && error.raw && (
-              <pre style={{
-                color: '#888',
-                fontSize: 12,
-                marginTop: 4,
-                background: '#f3f3f3',
-                padding: 8,
-                borderRadius: 4,
-                whiteSpace: 'pre-wrap'
-              }}>
-                {error.raw}
-              </pre>
-            )}
+            {error.message || 'AI 응답 파싱 실패'}
           </div>
         )}
       </div>
