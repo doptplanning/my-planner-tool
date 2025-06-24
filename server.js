@@ -113,14 +113,16 @@ AI: 네, 주요 타겟은 2030 MZ세대로 정리할게요. 혹시 제품의 가
     try {
       const content = data.choices?.[0]?.message?.content || '';
       let jsonString = content;
-      let match = content.match(/```json[\s\S]*?(\[?[\s\S]*\]?)[\s\S]*?```/);
+      // 코드블록 내 JSON 추출
+      let match = content.match(/```json[\s\S]*?(\[.*\])[\s\S]*?```/);
       if (match && match[1]) jsonString = match[1];
       else {
-        match = content.match(/```[\s\S]*?(\[?[\s\S]*\]?)[\s\S]*?```/);
+        match = content.match(/```[\s\S]*?(\[.*\])[\s\S]*?```/);
         if (match && match[1]) jsonString = match[1];
       }
+      // 코드블록이 아니면, 본문에서 가장 먼저 나오는 [ ... ] 추출
       if (!match || !match[1]) {
-        match = content.match(/(\[?[\s\S]*\]?)/);
+        match = content.match(/(\[.*\])/s);
         if (match && match[1]) jsonString = match[1];
       }
       aiResult = JSON.parse(jsonString);
