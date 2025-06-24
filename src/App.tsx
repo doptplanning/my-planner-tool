@@ -69,11 +69,7 @@ function AppRoutes() {
           <Route path="/" element={<Navigate to="/ai-interview" replace />} />
           <Route path="/login" element={<LoginPage />} />
           <Route path="/register" element={<RegisterPage />} />
-          <Route path="/upload" element={
-            <ProtectedRoute>
-              <UploadPage />
-            </ProtectedRoute>
-          } />
+          <Route path="/upload" element={<Navigate to="/ai-interview" replace />} />
           <Route path="/brief-edit" element={
             <ProtectedRoute>
               <BriefEditPage />
