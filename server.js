@@ -32,8 +32,16 @@ const User = mongoose.model('User', new mongoose.Schema({
 app.post('/api/gpt-brief', async (req, res) => {
   const { summary, images } = req.body;
 
+  // summary가 배열(messages)이면 string으로 합침
+  let summaryText = '';
+  if (Array.isArray(summary)) {
+    summaryText = summary.map(m => `${m.role === 'user' ? '사용자' : 'AI'}: ${m.content}`).join('\n');
+  } else {
+    summaryText = summary;
+  }
+
   const userMessages = [
-    { type: 'text', text: summary },
+    { type: 'text', text: summaryText },
   ];
 
   if (images && images.length > 0) {
@@ -50,14 +58,12 @@ app.post('/api/gpt-brief', async (req, res) => {
   const prompt = `
 너는 DOPT의 공식 작업의뢰서 작성 어시스턴트야.
 
-아래 작업의뢰서 항목/예시/가이드라인을 반드시 참고해서, 
-클라이언트와 자유롭게 대화하며 필요한 정보를 수집해.
-클라이언트가 여러 정보를 한 번에 입력하거나, 순서를 바꿔도 
-각 항목에 맞게 자동으로 분류/정리하고, 부족한 정보만 추가로 질문해.
-
-대화가 끝나면 아래 JSON 배열 포맷에 맞춰 지금까지의 Q&A(질문/답변)와 각 항목별 AI 추천/의견(aiComment)을 정리해서 출력해.
-
-**아무런 설명, 인사, 코드블록 없이 반드시 아래 JSON만 반환하세요.**
+아래 가이드라인을 반드시 지켜줘:
+- 사용자가 자유롭게 질문/답변/역질문할 수 있도록 대화해.
+- 절대 순차적으로 질문만 하지 말고, 사용자가 궁금한 점을 물어보면 친절하게 답변해줘.
+- 필요한 경우에만 추가 질문이나 추천/보완 의견을 제안해.
+- 대화가 끝나면, 지금까지의 Q&A(질문/답변)와 각 항목별 AI 추천/의견(aiComment)을 표(JSON 배열)로 정리해서 반환해.
+- **아무런 설명, 인사, 코드블록 없이 반드시 아래 JSON 배열만 반환해.**
 
 [Q&A+추천의견 결과물 예시]
 [

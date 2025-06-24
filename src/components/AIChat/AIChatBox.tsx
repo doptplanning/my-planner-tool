@@ -39,16 +39,14 @@ const AIChatBox: React.FC<AIChatBoxProps> = ({ onAIResult, width = 340, height =
       const res = await fetch(`${API_BASE}/api/gpt-brief`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ summary: input }),
+        body: JSON.stringify({ summary: messages.concat({ role: 'user', content: input }) }),
       });
       const data = await res.json();
       if (data.error) throw new Error(data.error);
-      // AI가 자유롭게 답변/분류/정리/추가 질문
       let aiMsg = data.brief || JSON.stringify(data);
       setMessages(prev => [...prev, { role: 'ai', content: aiMsg }]);
       setInput('');
       if (onAIResult) onAIResult(data);
-      // Q&A 표에 추가 (AI 추천의견이 있으면 함께)
       setQaList(prev => [
         ...prev,
         {
