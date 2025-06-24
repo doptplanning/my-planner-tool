@@ -92,39 +92,24 @@ const AIChatBox: React.FC<AIChatBoxProps> = ({ onAIResult, height = '80vh', styl
   return (
     <div style={{ width: 680, height, background: '#fff', borderRadius: 18, boxShadow: '0 2px 16px rgba(0,0,0,0.10)', display: 'flex', flexDirection: 'column', padding: 24, ...style }}>
       <div style={{ flex: 1, overflowY: 'auto', marginBottom: 12 }}>
-        {messages.map((msg, i) => (
-          <div key={i} style={{ margin: '12px 0', textAlign: msg.role === 'user' ? 'right' : 'left' }}>
-            <div style={{ display: 'inline-block', padding: '12px 18px', borderRadius: 16, background: msg.role === 'user' ? '#e3f0ff' : '#f6f6f6', color: '#222', maxWidth: 520, wordBreak: 'break-word', whiteSpace: 'pre-line', fontSize: 17, boxShadow: msg.role === 'user' ? '0 1px 4px #b6d4fe33' : '0 1px 4px #eee' }}>
-              {msg.content}
+        {messages.map((msg, i) => {
+          // HTML table 감지
+          const isTable = /<table[\s\S]*<\/table>/.test(msg.content);
+          return (
+            <div key={i} style={{ margin: '12px 0', textAlign: msg.role === 'user' ? 'right' : 'left' }}>
+              {isTable ? (
+                <div className="markdown-brief" dangerouslySetInnerHTML={{ __html: msg.content }} />
+              ) : (
+                <div style={{ display: 'inline-block', padding: '12px 18px', borderRadius: 16, background: msg.role === 'user' ? '#e3f0ff' : '#f6f6f6', color: '#222', maxWidth: 520, wordBreak: 'break-word', whiteSpace: 'pre-line', fontSize: 17, boxShadow: msg.role === 'user' ? '0 1px 4px #b6d4fe33' : '0 1px 4px #eee' }}>
+                  {msg.content}
+                </div>
+              )}
             </div>
-          </div>
-        ))}
+          );
+        })}
         {loading && <div style={{ color: '#888', fontSize: 15 }}>AI가 답변 중...</div>}
         <div ref={messagesEndRef} />
       </div>
-      {qaList.length > 0 && (
-        <div style={{ margin: '16px 0', background: '#fff', borderRadius: 8, boxShadow: '0 1px 4px rgba(0,0,0,0.04)', padding: 12 }}>
-          <div style={{ fontWeight: 600, marginBottom: 8, color: '#222' }}>질문/답변 & AI 추천의견</div>
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 14 }}>
-            <thead>
-              <tr style={{ background: '#f3f4f6' }}>
-                <th style={{ padding: 6, border: '1px solid #eee' }}>질문</th>
-                <th style={{ padding: 6, border: '1px solid #eee' }}>답변</th>
-                <th style={{ padding: 6, border: '1px solid #eee' }}>AI 추천/의견</th>
-              </tr>
-            </thead>
-            <tbody>
-              {qaList.map((qa, i) => (
-                <tr key={i}>
-                  <td style={{ padding: 6, border: '1px solid #eee', verticalAlign: 'top', background: '#f9fafb' }}>{qa.question}</td>
-                  <td style={{ padding: 6, border: '1px solid #eee', verticalAlign: 'top' }}>{qa.answer}</td>
-                  <td style={{ padding: 6, border: '1px solid #eee', verticalAlign: 'top', color: '#1976d2' }}>{qa.aiComment || '-'}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
       <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginTop: 8 }}>
         <input
           ref={inputRef}
