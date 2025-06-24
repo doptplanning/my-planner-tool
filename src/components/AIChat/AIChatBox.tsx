@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import FileUploader from '../FileUploader/FileUploader';
 
 interface QAItem {
@@ -24,6 +24,8 @@ const AIChatBox: React.FC<AIChatBoxProps> = ({ onAIResult, width = 340, height =
   const [loading, setLoading] = useState(false);
   const [qaList, setQaList] = useState<QAItem[]>([]);
   const [uploadedFiles, setUploadedFiles] = useState<File[]>([]);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const handleSend = async () => {
     if ((!input.trim() && uploadedFiles.length === 0) || loading) return;
@@ -76,25 +78,30 @@ const AIChatBox: React.FC<AIChatBoxProps> = ({ onAIResult, width = 340, height =
       setUploadedFiles([]);
     } finally {
       setLoading(false);
+      setTimeout(() => { inputRef.current?.focus(); }, 100);
     }
   };
 
-  // Q&A 표가 바뀔 때마다 부모에 전달
   useEffect(() => {
     if (onQAListChange) onQAListChange(qaList);
   }, [qaList, onQAListChange]);
 
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages, loading]);
+
   return (
-    <div style={{ width, height, background: '#f9f9f9', borderRadius: 12, boxShadow: '0 2px 8px rgba(0,0,0,0.08)', display: 'flex', flexDirection: 'column', padding: 16, ...style }}>
+    <div style={{ width: 680, height, background: '#fff', borderRadius: 18, boxShadow: '0 2px 16px rgba(0,0,0,0.10)', display: 'flex', flexDirection: 'column', padding: 24, ...style }}>
       <div style={{ flex: 1, overflowY: 'auto', marginBottom: 12 }}>
         {messages.map((msg, i) => (
-          <div key={i} style={{ margin: '8px 0', textAlign: msg.role === 'user' ? 'right' : 'left' }}>
-            <div style={{ display: 'inline-block', padding: '8px 12px', borderRadius: 8, background: msg.role === 'user' ? '#dbeafe' : '#fff', color: '#222', maxWidth: 260, wordBreak: 'break-word', whiteSpace: 'pre-line' }}>
+          <div key={i} style={{ margin: '12px 0', textAlign: msg.role === 'user' ? 'right' : 'left' }}>
+            <div style={{ display: 'inline-block', padding: '12px 18px', borderRadius: 16, background: msg.role === 'user' ? '#e3f0ff' : '#f6f6f6', color: '#222', maxWidth: 520, wordBreak: 'break-word', whiteSpace: 'pre-line', fontSize: 17, boxShadow: msg.role === 'user' ? '0 1px 4px #b6d4fe33' : '0 1px 4px #eee' }}>
               {msg.content}
             </div>
           </div>
         ))}
-        {loading && <div style={{ color: '#888', fontSize: 14 }}>AI가 답변 중...</div>}
+        {loading && <div style={{ color: '#888', fontSize: 15 }}>AI가 답변 중...</div>}
+        <div ref={messagesEndRef} />
       </div>
       {qaList.length > 0 && (
         <div style={{ margin: '16px 0', background: '#fff', borderRadius: 8, boxShadow: '0 1px 4px rgba(0,0,0,0.04)', padding: 12 }}>
@@ -119,20 +126,19 @@ const AIChatBox: React.FC<AIChatBoxProps> = ({ onAIResult, width = 340, height =
           </table>
         </div>
       )}
-      <div style={{ display: 'flex', gap: 8 }}>
+      <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginTop: 8 }}>
         <input
+          ref={inputRef}
           type="text"
           value={input}
           onChange={e => { setInput(e.target.value); }}
           onKeyDown={e => { if (e.key === 'Enter') handleSend(); }}
-          placeholder="여기에 자유롭게 입력하세요"
-          style={{ flex: 1, padding: 10, borderRadius: 6, border: '1px solid #bbb', fontSize: 15 }}
+          placeholder="궁금한 점이나 정보를 입력하세요"
+          style={{ flex: 1, padding: '16px 22px', borderRadius: 32, border: '1.5px solid #bbb', fontSize: 18, boxShadow: '0 2px 8px #e3e3e3', outline: 'none', background: '#fafbfc', transition: 'border 0.2s', minWidth: 0 }}
           disabled={loading}
         />
-        <button onClick={handleSend} disabled={loading || !input.trim()} style={{ padding: '0 18px', borderRadius: 6, background: '#111', color: '#fff', border: 'none', fontWeight: 600, fontSize: 15, cursor: 'pointer' }}>전송</button>
-      </div>
-      <div style={{ margin: '12px 0' }}>
-        <FileUploader files={uploadedFiles} onFileSelect={setUploadedFiles} />
+        <button onClick={handleSend} disabled={loading || (!input.trim() && uploadedFiles.length === 0)} style={{ padding: '0 28px', borderRadius: 32, background: '#1976d2', color: '#fff', border: 'none', fontWeight: 600, fontSize: 18, cursor: 'pointer', height: 48 }}>전송</button>
+        <FileUploader files={uploadedFiles} onFileSelect={setUploadedFiles} simple />
       </div>
     </div>
   );
