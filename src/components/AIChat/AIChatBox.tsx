@@ -9,7 +9,6 @@ interface QAItem {
 
 interface AIChatBoxProps {
   onAIResult?: (result: any) => void;
-  width?: number | string;
   height?: number | string;
   style?: React.CSSProperties;
   onQAListChange?: (qaList: QAItem[]) => void;
@@ -18,7 +17,7 @@ interface AIChatBoxProps {
 const greeting =
   '안녕하세요! DOPT 기획의 귀염둥이 기획자 디옵이에요! 작업의뢰서 작성을 도와드릴꺼에요 :)\n먼저 제품명이 모에요?';
 
-const AIChatBox: React.FC<AIChatBoxProps> = ({ onAIResult, width = 340, height = '80vh', style, onQAListChange }) => {
+const AIChatBox: React.FC<AIChatBoxProps> = ({ onAIResult, height = '80vh', style, onQAListChange }) => {
   const [messages, setMessages] = useState<{ role: 'user' | 'ai'; content: string }[]>([{ role: 'ai', content: greeting }]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
