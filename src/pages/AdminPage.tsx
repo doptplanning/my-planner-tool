@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 // @ts-ignore: no types for html2pdf.js
 import html2pdf from 'html2pdf.js/dist/html2pdf.min.js';
 
@@ -9,12 +9,36 @@ const roleLabels = {
 };
 
 export default function AdminPage() {
-  const [users, setUsers] = useState(() => JSON.parse(localStorage.getItem('users') || '[]'));
+  const [users, setUsers] = useState<any[]>([]);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    const fetchUsers = async () => {
+      try {
+        const API_BASE = import.meta.env.VITE_API_URL || 'https://my-planner-tool.onrender.com';
+        const token = localStorage.getItem('token');
+        const res = await fetch(`${API_BASE}/api/users`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        if (!res.ok) {
+          const data = await res.json();
+          setError(data.error || '사용자 목록을 불러올 수 없습니다.');
+          return;
+        }
+        const data = await res.json();
+        setUsers(data);
+      } catch (err) {
+        setError('서버 오류가 발생했습니다.');
+      }
+    };
+    fetchUsers();
+  }, []);
 
   const handleRoleChange = (email: string, newRole: string) => {
+    // TODO: API로 권한 변경 구현 필요
     const updated = users.map((u: any) => u.email === email ? { ...u, role: newRole } : u);
     setUsers(updated);
-    localStorage.setItem('users', JSON.stringify(updated));
+    // localStorage.setItem('users', JSON.stringify(updated)); // 더 이상 사용하지 않음
   };
 
   const handleDownloadPDF = (email: string) => {
@@ -65,6 +89,7 @@ export default function AdminPage() {
   return (
     <div style={{ padding: 32 }}>
       <h2>사용자 목록 및 권한 관리</h2>
+      {error && <div style={{ color: 'red', marginBottom: 12 }}>{error}</div>}
       <table style={{ width: '100%', borderCollapse: 'collapse', marginTop: 24 }}>
         <thead>
           <tr style={{ background: '#eee' }}>
