@@ -15,7 +15,7 @@ interface AIChatBoxProps {
 }
 
 const greeting =
-  '안녕하세요! DOPT 기획의 귀염둥이 기획자 디옵이에요.\n작업의뢰서에 필요한 정보를 자유롭게 말씀해 주세요!\n(예: 여러 항목을 한 번에 입력하거나, 궁금한 점을 물어보셔도 됩니다)';
+  '안녕하세요! DOPT 기획의 귀염둥이 기획자 디옵이에요! 작업의뢰서 작성을 도와드릴꺼에요 :)\n먼저 제품명이 모에요?';
 
 const AIChatBox: React.FC<AIChatBoxProps> = ({ onAIResult, width = 340, height = '80vh', style, onQAListChange }) => {
   const [messages, setMessages] = useState<{ role: 'user' | 'ai'; content: string }[]>([{ role: 'ai', content: greeting }]);
