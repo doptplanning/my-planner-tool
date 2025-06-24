@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import FileUploader from '../FileUploader/FileUploader';
 
 interface QAItem {
   question: string;
@@ -22,28 +23,43 @@ const AIChatBox: React.FC<AIChatBoxProps> = ({ onAIResult, width = 340, height =
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [qaList, setQaList] = useState<QAItem[]>([]);
+  const [uploadedFiles, setUploadedFiles] = useState<File[]>([]);
 
   const handleSend = async () => {
-    if (!input.trim() || loading) return;
-    setMessages(prev => [...prev, { role: 'user', content: input }]);
+    if ((!input.trim() && uploadedFiles.length === 0) || loading) return;
+    if (input.trim()) setMessages(prev => [...prev, { role: 'user', content: input }]);
+    if (uploadedFiles.length > 0) setMessages(prev => [...prev, { role: 'user', content: `[이미지 ${uploadedFiles.length}개 업로드]` }]);
     setLoading(true);
     try {
       const API_BASE = import.meta.env.VITE_API_URL || 'https://my-planner-tool.onrender.com';
+      let images: string[] = [];
+      if (uploadedFiles.length > 0) {
+        images = await Promise.all(uploadedFiles.map(file => {
+          return new Promise<string>((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(reader.result as string);
+            reader.onerror = reject;
+            reader.readAsDataURL(file);
+          });
+        }));
+      }
       const res = await fetch(`${API_BASE}/api/gpt-brief`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ summary: messages.concat({ role: 'user', content: input }) }),
+        body: JSON.stringify({ summary: messages.concat(input.trim() ? { role: 'user', content: input } : []), images }),
       });
       const data = await res.json();
       if (data.error) {
         let aiMsg = data.raw || JSON.stringify(data);
         setMessages(prev => [...prev, { role: 'ai', content: aiMsg }]);
         setInput('');
+        setUploadedFiles([]);
         return;
       }
       let aiMsg = data.brief || JSON.stringify(data);
       setMessages(prev => [...prev, { role: 'ai', content: aiMsg }]);
       setInput('');
+      setUploadedFiles([]);
       if (onAIResult) onAIResult(data);
       setQaList(prev => [
         ...prev,
@@ -57,6 +73,7 @@ const AIChatBox: React.FC<AIChatBoxProps> = ({ onAIResult, width = 340, height =
       let aiMsg = err.message || '서버 오류';
       setMessages(prev => [...prev, { role: 'ai', content: aiMsg }]);
       setInput('');
+      setUploadedFiles([]);
     } finally {
       setLoading(false);
     }
@@ -113,6 +130,9 @@ const AIChatBox: React.FC<AIChatBoxProps> = ({ onAIResult, width = 340, height =
           disabled={loading}
         />
         <button onClick={handleSend} disabled={loading || !input.trim()} style={{ padding: '0 18px', borderRadius: 6, background: '#111', color: '#fff', border: 'none', fontWeight: 600, fontSize: 15, cursor: 'pointer' }}>전송</button>
+      </div>
+      <div style={{ margin: '12px 0' }}>
+        <FileUploader files={uploadedFiles} onFileSelect={setUploadedFiles} />
       </div>
     </div>
   );
