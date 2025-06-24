@@ -43,7 +43,7 @@ const Navbar: React.FC = () => {
       borderBottom: '1px solid #222',
       padding: '0 32px'
     }}>
-      <div style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }} onClick={() => navigate('/upload')}>
+      <div style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }} onClick={() => navigate('/ai-interview')}>
         <img src="/dopt-logo.jpg" alt="D:opt Logo" style={{ height: 36, marginRight: 12 }} />
       </div>
       <div style={{ display: 'flex', alignItems: 'center' }}>
@@ -66,7 +66,7 @@ function AppRoutes() {
       <Navbar />
       <div style={{ paddingTop: 60 }}>
         <Routes>
-          <Route path="/" element={<Navigate to="/upload" replace />} />
+          <Route path="/" element={<Navigate to="/ai-interview" replace />} />
           <Route path="/login" element={<LoginPage />} />
           <Route path="/register" element={<RegisterPage />} />
           <Route path="/upload" element={
