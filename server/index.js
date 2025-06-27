@@ -4,6 +4,8 @@ const mongoose = require('mongoose');
 const cors = require('cors');
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
+const { Client } = require('@notionhq/client');
+const OpenAI = require('openai');
 
 const app = express();
 app.use(cors());
@@ -17,6 +19,17 @@ const User = mongoose.model('User', new mongoose.Schema({
   email: { type: String, unique: true },
   password: String,
   role: { type: String, default: 'client' }
+}));
+
+// Training 모델 추가
+const Training = mongoose.model('Training', new mongoose.Schema({
+  userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+  notionToken: String,
+  databaseId: String,
+  pageIds: [String],
+  status: { type: String, enum: ['pending', 'processing', 'completed', 'failed'], default: 'pending' },
+  result: String,
+  createdAt: { type: Date, default: Date.now }
 }));
 
 // JWT 미들웨어
@@ -64,6 +77,204 @@ app.patch('/api/users/:id/role', auth, async (req, res) => {
   const { role } = req.body;
   await User.findByIdAndUpdate(req.params.id, { role });
   res.json({ success: true });
+});
+
+// 노션 연결 및 페이지 가져오기
+app.post('/api/notion/connect', auth, async (req, res) => {
+  if (req.user.role !== 'admin') return res.status(403).json({ error: '권한 없음' });
+  
+  const { notionToken, databaseId } = req.body;
+  
+  try {
+    const notion = new Client({ auth: notionToken });
+    
+    // 데이터베이스 쿼리
+    const response = await notion.databases.query({
+      database_id: databaseId,
+      page_size: 100
+    });
+    
+    const pages = [];
+    
+    for (const page of response.results) {
+      try {
+        // 페이지 내용 가져오기
+        const pageContent = await notion.pages.retrieve({ page_id: page.id });
+        const blocks = await notion.blocks.children.list({ block_id: page.id });
+        
+        let content = '';
+        for (const block of blocks.results) {
+          if (block.type === 'paragraph' && block.paragraph.rich_text.length > 0) {
+            content += block.paragraph.rich_text.map(text => text.plain_text).join(' ') + '\n';
+          } else if (block.type === 'heading_1' && block.heading_1.rich_text.length > 0) {
+            content += block.heading_1.rich_text.map(text => text.plain_text).join(' ') + '\n';
+          } else if (block.type === 'heading_2' && block.heading_2.rich_text.length > 0) {
+            content += block.heading_2.rich_text.map(text => text.plain_text).join(' ') + '\n';
+          } else if (block.type === 'bulleted_list_item' && block.bulleted_list_item.rich_text.length > 0) {
+            content += '• ' + block.bulleted_list_item.rich_text.map(text => text.plain_text).join(' ') + '\n';
+          } else if (block.type === 'numbered_list_item' && block.numbered_list_item.rich_text.length > 0) {
+            content += block.numbered_list_item.rich_text.map(text => text.plain_text).join(' ') + '\n';
+          }
+        }
+        
+        // 페이지 제목 추출
+        let title = '제목 없음';
+        if (page.properties.title && page.properties.title.title.length > 0) {
+          title = page.properties.title.title.map(text => text.plain_text).join(' ');
+        } else if (page.properties.Name && page.properties.Name.title.length > 0) {
+          title = page.properties.Name.title.map(text => text.plain_text).join(' ');
+        }
+        
+        pages.push({
+          id: page.id,
+          title: title,
+          content: content.trim(),
+          lastEdited: page.last_edited_time
+        });
+      } catch (error) {
+        console.error(`페이지 ${page.id} 처리 중 오류:`, error);
+      }
+    }
+    
+    res.json({ pages });
+  } catch (error) {
+    console.error('노션 연결 오류:', error);
+    res.status(500).json({ error: '노션 연결에 실패했습니다.' });
+  }
+});
+
+// AI 모델 학습
+app.post('/api/notion/train', auth, async (req, res) => {
+  if (req.user.role !== 'admin') return res.status(403).json({ error: '권한 없음' });
+  
+  const { pageIds, notionToken, databaseId } = req.body;
+  
+  try {
+    // 학습 기록 생성
+    const training = await Training.create({
+      userId: req.user.id,
+      notionToken,
+      databaseId,
+      pageIds,
+      status: 'processing'
+    });
+    
+    const notion = new Client({ auth: notionToken });
+    const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+    
+    let allContent = '';
+    
+    // 선택된 페이지들의 내용 수집
+    for (const pageId of pageIds) {
+      try {
+        const blocks = await notion.blocks.children.list({ block_id: pageId });
+        
+        for (const block of blocks.results) {
+          if (block.type === 'paragraph' && block.paragraph.rich_text.length > 0) {
+            allContent += block.paragraph.rich_text.map(text => text.plain_text).join(' ') + '\n';
+          } else if (block.type === 'heading_1' && block.heading_1.rich_text.length > 0) {
+            allContent += '# ' + block.heading_1.rich_text.map(text => text.plain_text).join(' ') + '\n';
+          } else if (block.type === 'heading_2' && block.heading_2.rich_text.length > 0) {
+            allContent += '## ' + block.heading_2.rich_text.map(text => text.plain_text).join(' ') + '\n';
+          } else if (block.type === 'bulleted_list_item' && block.bulleted_list_item.rich_text.length > 0) {
+            allContent += '• ' + block.bulleted_list_item.rich_text.map(text => text.plain_text).join(' ') + '\n';
+          } else if (block.type === 'numbered_list_item' && block.numbered_list_item.rich_text.length > 0) {
+            allContent += block.numbered_list_item.rich_text.map(text => text.plain_text).join(' ') + '\n';
+          }
+        }
+      } catch (error) {
+        console.error(`페이지 ${pageId} 처리 중 오류:`, error);
+      }
+    }
+    
+    // OpenAI를 사용한 학습 (Fine-tuning 대신 임시로 요약 생성)
+    const completion = await openai.chat.completions.create({
+      model: "gpt-3.5-turbo",
+      messages: [
+        {
+          role: "system",
+          content: "당신은 노션 데이터를 분석하고 학습하는 AI 어시스턴트입니다. 주어진 내용을 바탕으로 핵심 정보를 추출하고 요약해주세요."
+        },
+        {
+          role: "user",
+          content: `다음 노션 데이터를 분석하고 핵심 정보를 요약해주세요:\n\n${allContent.substring(0, 4000)}`
+        }
+      ],
+      max_tokens: 1000
+    });
+    
+    const result = completion.choices[0].message.content;
+    
+    // 학습 결과 저장
+    await Training.findByIdAndUpdate(training._id, {
+      status: 'completed',
+      result: result
+    });
+    
+    res.json({ 
+      success: true, 
+      message: 'AI 모델 학습이 완료되었습니다.',
+      result: result
+    });
+    
+  } catch (error) {
+    console.error('AI 학습 오류:', error);
+    
+    // 오류 발생 시 상태 업데이트
+    if (req.body.pageIds) {
+      await Training.findOneAndUpdate(
+        { userId: req.user.id, pageIds: req.body.pageIds },
+        { status: 'failed' }
+      );
+    }
+    
+    res.status(500).json({ error: 'AI 학습에 실패했습니다.' });
+  }
+});
+
+// 학습 히스토리 조회
+app.get('/api/notion/training-history', auth, async (req, res) => {
+  if (req.user.role !== 'admin') return res.status(403).json({ error: '권한 없음' });
+  
+  try {
+    const trainings = await Training.find({ userId: req.user.id })
+      .sort({ createdAt: -1 })
+      .limit(20);
+    
+    res.json({ trainings });
+  } catch (error) {
+    console.error('학습 히스토리 조회 오류:', error);
+    res.status(500).json({ error: '히스토리 조회에 실패했습니다.' });
+  }
+});
+
+// OpenAI 채팅 API (기존)
+app.post('/api/openai/chat', auth, async (req, res) => {
+  const { message } = req.body;
+  
+  try {
+    const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+    
+    const completion = await openai.chat.completions.create({
+      model: "gpt-3.5-turbo",
+      messages: [
+        {
+          role: "system",
+          content: "당신은 전문적인 워크 요청서 작성 도우미입니다. 클라이언트가 더 전문적이고 상세한 워크 요청서를 작성할 수 있도록 도와주세요."
+        },
+        {
+          role: "user",
+          content: message
+        }
+      ],
+      max_tokens: 500
+    });
+    
+    res.json({ response: completion.choices[0].message.content });
+  } catch (error) {
+    console.error('OpenAI API 오류:', error);
+    res.status(500).json({ error: 'AI 응답 생성에 실패했습니다.' });
+  }
 });
 
 app.listen(3001, () => console.log('Server running on 3001')); 

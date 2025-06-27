@@ -17,6 +17,7 @@ import SummaryPage from './pages/SummaryPage';
 import CompletePage from './pages/CompletePage';
 import AdminPage from './pages/AdminPage';
 import AIInterviewPage from './pages/AIInterviewPage';
+import NotionTrainingPage from './pages/NotionTrainingPage';
 
 const Navbar: React.FC = () => {
   const { user, logout } = useAuth();
@@ -48,7 +49,10 @@ const Navbar: React.FC = () => {
       <div style={{ display: 'flex', alignItems: 'center' }}>
         <span style={{ color: '#fff', marginRight: 16 }}>{user.email} ({user.role})</span>
         {user.role === 'admin' && (
-          <button onClick={() => navigate('/admin')} style={{ background: '#fff', color: '#111', border: 'none', borderRadius: 4, padding: '8px 18px', fontWeight: 600, cursor: 'pointer', marginRight: 8 }}>관리자</button>
+          <>
+            <button onClick={() => navigate('/admin')} style={{ background: '#fff', color: '#111', border: 'none', borderRadius: 4, padding: '8px 18px', fontWeight: 600, cursor: 'pointer', marginRight: 8 }}>관리자</button>
+            <button onClick={() => navigate('/notion-training')} style={{ background: '#10b981', color: '#fff', border: 'none', borderRadius: 4, padding: '8px 18px', fontWeight: 600, cursor: 'pointer', marginRight: 8 }}>노션 AI 학습</button>
+          </>
         )}
         {user.role === 'staff' && (
           <button onClick={() => navigate('/history')} style={{ background: '#fff', color: '#111', border: 'none', borderRadius: 4, padding: '8px 18px', fontWeight: 600, cursor: 'pointer', marginRight: 8 }}>히스토리</button>
@@ -130,6 +134,11 @@ function AppRoutes() {
             </ProtectedRoute>
           } />
           <Route path="/ai-interview" element={<AIInterviewPage />} />
+          <Route path="/notion-training" element={
+            <ProtectedRoute requiredRole="admin">
+              <NotionTrainingPage />
+            </ProtectedRoute>
+          } />
         </Routes>
       </div>
     </>
