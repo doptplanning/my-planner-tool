@@ -22,6 +22,8 @@ interface TrainingHistory {
   pageIds: string[];
 }
 
+const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:3001';
+
 const NotionTrainingPage: React.FC = () => {
   const { user } = useAuth();
   const [notionToken, setNotionToken] = useState('');
@@ -41,7 +43,7 @@ const NotionTrainingPage: React.FC = () => {
 
   const fetchTrainingHistory = async () => {
     try {
-      const response = await fetch('/api/notion/training-history', {
+      const response = await fetch(`${API_BASE}/api/notion/training-history`, {
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token')}`
         }
@@ -66,7 +68,7 @@ const NotionTrainingPage: React.FC = () => {
     setTrainingStatus({ status: 'loading', message: '노션 데이터베이스에 연결 중...' });
 
     try {
-      const response = await fetch('/api/notion/connect', {
+      const response = await fetch(`${API_BASE}/api/notion/connect`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -110,7 +112,7 @@ const NotionTrainingPage: React.FC = () => {
     setTrainingStatus({ status: 'loading', message: 'AI 모델 학습을 시작합니다...', progress: 0 });
 
     try {
-      const response = await fetch('/api/notion/train', {
+      const response = await fetch(`${API_BASE}/api/notion/train`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
