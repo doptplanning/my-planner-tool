@@ -34,6 +34,7 @@ const NotionTrainingPage: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [trainingHistory, setTrainingHistory] = useState<TrainingHistory[]>([]);
   const [showHistory, setShowHistory] = useState(false);
+  const [previewPage, setPreviewPage] = useState<NotionPage | null>(null);
 
   useEffect(() => {
     if (user?.role === 'admin') {
@@ -392,7 +393,8 @@ const NotionTrainingPage: React.FC = () => {
                   borderRadius: '8px',
                   marginBottom: '12px',
                   background: selectedPages.includes(page.id) ? '#f0f9ff' : '#fff',
-                  cursor: 'pointer'
+                  cursor: 'pointer',
+                  position: 'relative'
                 }}
                 onClick={() => {
                   if (selectedPages.includes(page.id)) {
@@ -412,6 +414,22 @@ const NotionTrainingPage: React.FC = () => {
                   <h3 style={{ fontSize: '16px', fontWeight: '600', color: '#111', margin: 0 }}>
                     {page.title}
                   </h3>
+                  <button
+                    onClick={e => { e.stopPropagation(); setPreviewPage(page); }}
+                    style={{
+                      marginLeft: 'auto',
+                      background: '#e0e7ff',
+                      color: '#3730a3',
+                      border: 'none',
+                      borderRadius: '6px',
+                      padding: '4px 12px',
+                      fontSize: '13px',
+                      cursor: 'pointer',
+                      fontWeight: 500
+                    }}
+                  >
+                    미리보기
+                  </button>
                 </div>
                 <p style={{ 
                   fontSize: '14px', 
@@ -429,6 +447,11 @@ const NotionTrainingPage: React.FC = () => {
                 </span>
               </div>
             ))}
+            {pages.length > 0 && selectedPages.length === 0 && (
+              <div style={{ color: '#ef4444', textAlign: 'center', marginTop: '16px' }}>
+                학습할 페이지를 선택해주세요.
+              </div>
+            )}
           </div>
 
           <button
@@ -449,6 +472,58 @@ const NotionTrainingPage: React.FC = () => {
           >
             {trainingStatus.status === 'loading' ? '학습 중...' : `선택된 ${selectedPages.length}개 페이지로 AI 학습 시작`}
           </button>
+
+          {/* 미리보기 모달 */}
+          {previewPage && (
+            <div style={{
+              position: 'fixed',
+              top: 0,
+              left: 0,
+              width: '100vw',
+              height: '100vh',
+              background: 'rgba(0,0,0,0.3)',
+              zIndex: 1000,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center'
+            }}
+              onClick={() => setPreviewPage(null)}
+            >
+              <div style={{
+                background: '#fff',
+                borderRadius: '12px',
+                padding: '32px',
+                maxWidth: '600px',
+                width: '90%',
+                boxShadow: '0 4px 24px rgba(0,0,0,0.15)',
+                position: 'relative'
+              }}
+                onClick={e => e.stopPropagation()}
+              >
+                <button
+                  onClick={() => setPreviewPage(null)}
+                  style={{
+                    position: 'absolute',
+                    top: 16,
+                    right: 16,
+                    background: 'transparent',
+                    border: 'none',
+                    fontSize: '20px',
+                    cursor: 'pointer',
+                    color: '#6b7280'
+                  }}
+                  aria-label="닫기"
+                >
+                  ×
+                </button>
+                <h2 style={{ fontSize: '1.3rem', fontWeight: '600', marginBottom: '16px', color: '#111' }}>{previewPage.title}</h2>
+                <div style={{ fontSize: '15px', color: '#374151', whiteSpace: 'pre-line' }}>{previewPage.content}</div>
+                <div style={{ fontSize: '12px', color: '#9ca3af', marginTop: '16px' }}>
+                  마지막 수정: {new Date(previewPage.lastEdited).toLocaleString()}
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       )}
 
