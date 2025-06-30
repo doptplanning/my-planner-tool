@@ -83,25 +83,48 @@ app.patch('/api/users/:id/role', auth, async (req, res) => {
 app.post('/api/notion/connect', auth, async (req, res) => {
   if (req.user.role !== 'admin') return res.status(403).json({ error: '권한 없음' });
   
-  const { notionToken, databaseId } = req.body;
+  const { notionToken, databaseId, search = '', page = 1, pageSize = 20 } = req.body;
   
   try {
     const notion = new Client({ auth: notionToken });
     
-    // 데이터베이스 쿼리
-    const response = await notion.databases.query({
-      database_id: databaseId,
-      page_size: 100
-    });
-    
+    // Notion API filter: 제목에 검색어 포함
+    let filter = undefined;
+    if (search && search.trim() !== '') {
+      filter = {
+        or: [
+          { property: 'title', title: { contains: search } },
+          { property: 'Name', title: { contains: search } }
+        ]
+      };
+    }
+
+    // 페이지네이션: Notion은 100개씩만 반환하므로, 전체 결과를 모두 모은다
+    let hasMore = true;
+    let start_cursor = undefined;
+    let allResults = [];
+    while (hasMore) {
+      const response = await notion.databases.query({
+        database_id: databaseId,
+        filter,
+        start_cursor,
+        page_size: 100
+      });
+      allResults = allResults.concat(response.results);
+      hasMore = response.has_more;
+      start_cursor = response.next_cursor;
+    }
+    // 전체 개수
+    const total = allResults.length;
+    // 현재 페이지에 해당하는 20개만 추출
+    const pagedResults = allResults.slice((page - 1) * pageSize, page * pageSize);
+
     const pages = [];
-    
-    for (const page of response.results) {
+    for (const pageObj of pagedResults) {
       try {
         // 페이지 내용 가져오기
-        const pageContent = await notion.pages.retrieve({ page_id: page.id });
-        const blocks = await notion.blocks.children.list({ block_id: page.id });
-        
+        const pageContent = await notion.pages.retrieve({ page_id: pageObj.id });
+        const blocks = await notion.blocks.children.list({ block_id: pageObj.id });
         let content = '';
         for (const block of blocks.results) {
           if (block.type === 'paragraph' && block.paragraph.rich_text.length > 0) {
@@ -116,27 +139,24 @@ app.post('/api/notion/connect', auth, async (req, res) => {
             content += block.numbered_list_item.rich_text.map(text => text.plain_text).join(' ') + '\n';
           }
         }
-        
         // 페이지 제목 추출
         let title = '제목 없음';
-        if (page.properties.title && page.properties.title.title.length > 0) {
-          title = page.properties.title.title.map(text => text.plain_text).join(' ');
-        } else if (page.properties.Name && page.properties.Name.title.length > 0) {
-          title = page.properties.Name.title.map(text => text.plain_text).join(' ');
+        if (pageObj.properties.title && pageObj.properties.title.title.length > 0) {
+          title = pageObj.properties.title.title.map(text => text.plain_text).join(' ');
+        } else if (pageObj.properties.Name && pageObj.properties.Name.title.length > 0) {
+          title = pageObj.properties.Name.title.map(text => text.plain_text).join(' ');
         }
-        
         pages.push({
-          id: page.id,
+          id: pageObj.id,
           title: title,
           content: content.trim(),
-          lastEdited: page.last_edited_time
+          lastEdited: pageObj.last_edited_time
         });
       } catch (error) {
-        console.error(`페이지 ${page.id} 처리 중 오류:`, error);
+        console.error(`페이지 ${pageObj.id} 처리 중 오류:`, error);
       }
     }
-    
-    res.json({ pages });
+    res.json({ pages, total });
   } catch (error) {
     console.error('노션 연결 오류:', error);
     res.status(500).json({ error: '노션 연결에 실패했습니다.' });
