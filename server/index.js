@@ -93,9 +93,13 @@ app.post('/api/notion/connect', auth, async (req, res) => {
       ([, prop]) => prop.type === 'title'
     )?.[0];
 
+    if (!titleKey) {
+      return res.status(400).json({ error: '이 데이터베이스에는 제목(Title) 컬럼이 없습니다. Notion에서 제목 역할의 컬럼을 반드시 포함시켜 주세요.' });
+    }
+
     // Notion API filter: 제목에 검색어 포함
     let filter = undefined;
-    if (search && search.trim() !== '' && titleKey) {
+    if (search && search.trim() !== '') {
       filter = {
         property: titleKey,
         title: { contains: search }
