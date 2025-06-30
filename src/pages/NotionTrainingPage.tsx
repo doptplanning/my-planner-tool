@@ -28,7 +28,7 @@ const NotionTrainingPage: React.FC = () => {
   const { user } = useAuth();
   const [notionToken, setNotionToken] = useState('');
   const [databaseId, setDatabaseId] = useState('');
-  const [pages, setPages] = useState<NotionPage[]>([]);
+  const [pages, setPages] = useState<NotionPage[] | null>(null);
   const [selectedPages, setSelectedPages] = useState<string[]>([]);
   const [trainingStatus, setTrainingStatus] = useState<TrainingStatus>({ status: 'idle', message: '' });
   const [isLoading, setIsLoading] = useState(false);
@@ -101,7 +101,7 @@ const NotionTrainingPage: React.FC = () => {
   };
 
   const handleSelectAll = () => {
-    if (selectedPages.length === pages.length) {
+    if (selectedPages.length === pages?.length || pages === null) {
       setSelectedPages([]);
     } else {
       setSelectedPages(pages.map(page => page.id));
@@ -369,13 +369,14 @@ const NotionTrainingPage: React.FC = () => {
       )}
 
       {/* 페이지 목록 */}
-      {pages.length > 0 && (
+      {pages !== null && (
         <div style={{ 
           background: '#fff', 
           padding: '24px', 
           borderRadius: '12px',
           border: '1px solid #e5e7eb'
         }}>
+          {/* 검색 UI (이동) */}
           <div style={{ display: 'flex', alignItems: 'center', marginBottom: '16px', gap: '8px' }}>
             <input
               type="text"
@@ -605,7 +606,7 @@ const NotionTrainingPage: React.FC = () => {
             </div>
           )}
 
-          {/* 페이지네이션 UI */}
+          {/* 페이지네이션 UI (이동) */}
           <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', marginTop: '24px', gap: '8px' }}>
             <button
               onClick={() => handlePageChange(page - 1)}
@@ -643,6 +644,16 @@ const NotionTrainingPage: React.FC = () => {
               다음
             </button>
           </div>
+
+          {pages.length === 0 ? (
+            <div style={{ color: '#ef4444', textAlign: 'center', margin: '32px 0' }}>
+              검색 결과가 없습니다.
+            </div>
+          ) : (
+            <>
+              {/* ...기존 리스트/미리보기/원본 보기 ... */}
+            </>
+          )}
         </div>
       )}
 
