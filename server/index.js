@@ -37,6 +37,7 @@ const Training = mongoose.model('Training', new mongoose.Schema({
   pageIds: [String],
   status: { type: String, enum: ['pending', 'processing', 'completed', 'failed'], default: 'pending' },
   result: String,
+  aiRaw: String,
   createdAt: { type: Date, default: Date.now }
 }));
 
@@ -204,7 +205,6 @@ app.post('/api/notion/train', auth, async (req, res) => {
   const { pageIds, notionToken, databaseId } = req.body;
   
   try {
-    // 학습 기록 생성
     const training = await Training.create({
       userId: req.user.id,
       notionToken,
@@ -212,17 +212,11 @@ app.post('/api/notion/train', auth, async (req, res) => {
       pageIds,
       status: 'processing'
     });
-    
     const notion = new Client({ auth: notionToken });
-    const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
-    
     let allContent = '';
-    
-    // 선택된 페이지들의 내용 수집
     for (const pageId of pageIds) {
       try {
         const blocks = await notion.blocks.children.list({ block_id: pageId });
-        
         for (const block of blocks.results) {
           if (block.type === 'paragraph' && block.paragraph.rich_text.length > 0) {
             allContent += block.paragraph.rich_text.map(text => text.plain_text).join(' ') + '\n';
@@ -240,48 +234,50 @@ app.post('/api/notion/train', auth, async (req, res) => {
         console.error(`페이지 ${pageId} 처리 중 오류:`, error);
       }
     }
-    
-    // OpenAI를 사용한 학습 (Fine-tuning 대신 임시로 요약 생성)
-    const completion = await openai.chat.completions.create({
-      model: "gpt-3.5-turbo",
-      messages: [
-        {
-          role: "system",
-          content: "당신은 노션 데이터를 분석하고 학습하는 AI 어시스턴트입니다. 주어진 내용을 바탕으로 핵심 정보를 추출하고 요약해주세요."
-        },
-        {
-          role: "user",
-          content: `다음 노션 데이터를 분석하고 핵심 정보를 요약해주세요:\n\n${allContent.substring(0, 4000)}`
-        }
-      ],
-      max_tokens: 1000
+    // OpenAI를 사용한 학습 (요약)
+    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        model: 'gpt-4o',
+        messages: [
+          {
+            role: 'system',
+            content: '당신은 노션 데이터를 분석하고 학습하는 AI 어시스턴트입니다. 주어진 내용을 바탕으로 핵심 정보를 추출하고 요약해주세요.'
+          },
+          {
+            role: 'user',
+            content: `다음 노션 데이터를 분석하고 핵심 정보를 요약해주세요:\n\n${allContent.substring(0, 4000)}`
+          }
+        ],
+        max_tokens: 1000
+      })
     });
-    
-    const result = completion.choices[0].message.content;
-    
-    // 학습 결과 저장
+    const data = await response.json();
+    const aiRaw = data.choices?.[0]?.message?.content || '';
+    const result = aiRaw;
     await Training.findByIdAndUpdate(training._id, {
       status: 'completed',
-      result: result
+      result: result,
+      aiRaw: aiRaw
     });
-    
     res.json({ 
       success: true, 
       message: 'AI 모델 학습이 완료되었습니다.',
-      result: result
+      result: result,
+      aiRaw: aiRaw
     });
-    
   } catch (error) {
     console.error('AI 학습 오류:', error);
-    
-    // 오류 발생 시 상태 업데이트
     if (req.body.pageIds) {
       await Training.findOneAndUpdate(
         { userId: req.user.id, pageIds: req.body.pageIds },
         { status: 'failed' }
       );
     }
-    
     res.status(500).json({ error: 'AI 학습에 실패했습니다.' });
   }
 });
