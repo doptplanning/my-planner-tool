@@ -516,7 +516,26 @@ const NotionTrainingPage: React.FC = () => {
                 >
                   ×
                 </button>
-                <h2 style={{ fontSize: '1.3rem', fontWeight: '600', marginBottom: '16px', color: '#111' }}>{previewPage.title}</h2>
+                <h2 style={{ fontSize: '1.3rem', fontWeight: '600', marginBottom: '16px', color: '#111', display: 'flex', alignItems: 'center' }}>
+                  {previewPage.title}
+                  {/* 노션 페이지 링크 */}
+                  <a
+                    href={`https://www.notion.so/${previewPage.id.replace(/-/g, '')}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={{
+                      marginLeft: '10px',
+                      color: '#3b82f6',
+                      textDecoration: 'none',
+                      fontSize: '18px',
+                      display: 'inline-flex',
+                      alignItems: 'center'
+                    }}
+                    title="노션에서 열기"
+                  >
+                    🔗
+                  </a>
+                </h2>
                 <div style={{ fontSize: '15px', color: '#374151', whiteSpace: 'pre-line' }}>{previewPage.content}</div>
                 <div style={{ fontSize: '12px', color: '#9ca3af', marginTop: '16px' }}>
                   마지막 수정: {new Date(previewPage.lastEdited).toLocaleString()}
