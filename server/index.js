@@ -427,9 +427,9 @@ app.post('/api/generate-pdf', async (req, res) => {
   });
 });
 
-// 노션 학습페이지용 AI 대화 API
+// 노션 학습페이지용 AI 대화 API (이미지 지원)
 app.post('/api/notion/ai-chat', auth, async (req, res) => {
-  const { message } = req.body;
+  const { message, images } = req.body;
   try {
     // 최근 학습된 aiRaw 불러오기
     const lastTraining = await Training.findOne({ userId: req.user.id, status: 'completed' }).sort({ createdAt: -1 });
@@ -437,7 +437,18 @@ app.post('/api/notion/ai-chat', auth, async (req, res) => {
     if (!context) {
       return res.status(400).json({ error: '학습된 데이터가 없습니다. 먼저 노션 학습을 진행해 주세요.' });
     }
-    const prompt = `아래는 노션에서 학습한 내용입니다. 이 내용을 참고해서 사용자의 질문에 답변해줘.\n\n[학습 내용]\n${context}\n\n[사용자 질문]\n${message}`;
+    // 텍스트+이미지 메시지 구성
+    const userMessages = [
+      { type: 'text', text: `아래는 노션에서 학습한 내용입니다. 이 내용을 참고해서 사용자의 질문에 답변해줘.\n\n[학습 내용]\n${context}\n\n[사용자 질문]\n${message}` }
+    ];
+    if (images && Array.isArray(images)) {
+      images.forEach((imageBase64) => {
+        userMessages.push({
+          type: 'image_url',
+          image_url: { url: imageBase64 }
+        });
+      });
+    }
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: {
@@ -448,7 +459,7 @@ app.post('/api/notion/ai-chat', auth, async (req, res) => {
         model: 'gpt-4o',
         messages: [
           { role: 'system', content: '너는 노션에서 학습한 내용을 바탕으로 전문적으로 답변하는 AI 어시스턴트야.' },
-          { role: 'user', content: prompt }
+          { role: 'user', content: userMessages }
         ],
         max_tokens: 1000,
         temperature: 0.7
