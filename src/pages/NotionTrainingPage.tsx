@@ -35,6 +35,10 @@ const NotionTrainingPage: React.FC = () => {
   const [trainingHistory, setTrainingHistory] = useState<TrainingHistory[]>([]);
   const [showHistory, setShowHistory] = useState(false);
   const [previewPage, setPreviewPage] = useState<NotionPage | null>(null);
+  const [search, setSearch] = useState('');
+  const [page, setPage] = useState(1);
+  const [pageSize] = useState(20);
+  const [total, setTotal] = useState(0);
 
   useEffect(() => {
     if (user?.role === 'admin') {
@@ -59,15 +63,13 @@ const NotionTrainingPage: React.FC = () => {
     }
   };
 
-  const handleConnectNotion = async () => {
+  const handleConnectNotion = async (opts?: { search?: string; page?: number }) => {
     if (!notionToken || !databaseId) {
       alert('노션 토큰과 데이터베이스 ID를 입력해주세요.');
       return;
     }
-
     setIsLoading(true);
     setTrainingStatus({ status: 'loading', message: '노션 데이터베이스에 연결 중...' });
-
     try {
       const response = await fetch(`${API_BASE}/api/notion/connect`, {
         method: 'POST',
@@ -77,15 +79,17 @@ const NotionTrainingPage: React.FC = () => {
         },
         body: JSON.stringify({
           notionToken,
-          databaseId
+          databaseId,
+          search: opts?.search !== undefined ? opts.search : search,
+          page: opts?.page !== undefined ? opts.page : page,
+          pageSize
         })
       });
-
       const data = await response.json();
-
       if (response.ok) {
         setPages(data.pages);
-        setTrainingStatus({ status: 'success', message: `${data.pages.length}개의 페이지를 찾았습니다.` });
+        setTotal(data.total || 0);
+        setTrainingStatus({ status: 'success', message: `${data.total || data.pages.length}개의 페이지를 찾았습니다.` });
       } else {
         setTrainingStatus({ status: 'error', message: data.message || '연결에 실패했습니다.' });
       }
@@ -161,6 +165,18 @@ const NotionTrainingPage: React.FC = () => {
       case 'pending': return '대기 중';
       default: return status;
     }
+  };
+
+  // 검색 핸들러
+  const handleSearch = () => {
+    setPage(1);
+    handleConnectNotion({ search, page: 1 });
+  };
+
+  // 페이지 변경 핸들러
+  const handlePageChange = (newPage: number) => {
+    setPage(newPage);
+    handleConnectNotion({ page: newPage });
   };
 
   return (
@@ -264,6 +280,37 @@ const NotionTrainingPage: React.FC = () => {
         <h2 style={{ fontSize: '1.5rem', fontWeight: '600', marginBottom: '20px', color: '#111' }}>
           노션 데이터베이스 연결
         </h2>
+        {/* 검색 UI */}
+        <div style={{ display: 'flex', alignItems: 'center', marginBottom: '16px', gap: '8px' }}>
+          <input
+            type="text"
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            placeholder="제목 검색어 입력"
+            style={{
+              flex: 1,
+              padding: '12px',
+              border: '1px solid #d1d5db',
+              borderRadius: '8px',
+              fontSize: '14px'
+            }}
+          />
+          <button
+            onClick={handleSearch}
+            style={{
+              background: '#3b82f6',
+              color: 'white',
+              border: 'none',
+              borderRadius: '8px',
+              padding: '12px 24px',
+              fontSize: '14px',
+              fontWeight: '600',
+              cursor: 'pointer'
+            }}
+          >
+            검색
+          </button>
+        </div>
         
         <div style={{ marginBottom: '16px' }}>
           <label style={{ display: 'block', marginBottom: '8px', fontWeight: '500', color: '#374151' }}>
@@ -304,7 +351,7 @@ const NotionTrainingPage: React.FC = () => {
         </div>
 
         <button
-          onClick={handleConnectNotion}
+          onClick={() => handleConnectNotion()}
           disabled={isLoading}
           style={{
             background: '#3b82f6',
@@ -561,6 +608,45 @@ const NotionTrainingPage: React.FC = () => {
               </div>
             </div>
           )}
+
+          {/* 페이지네이션 UI */}
+          <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', marginTop: '24px', gap: '8px' }}>
+            <button
+              onClick={() => handlePageChange(page - 1)}
+              disabled={page === 1}
+              style={{
+                background: '#e5e7eb',
+                color: '#6b7280',
+                border: 'none',
+                borderRadius: '6px',
+                padding: '8px 16px',
+                fontSize: '14px',
+                cursor: page === 1 ? 'not-allowed' : 'pointer',
+                opacity: page === 1 ? 0.6 : 1
+              }}
+            >
+              이전
+            </button>
+            <span style={{ fontSize: '15px', fontWeight: 500 }}>
+              {page} / {Math.max(1, Math.ceil(total / pageSize))}
+            </span>
+            <button
+              onClick={() => handlePageChange(page + 1)}
+              disabled={page >= Math.ceil(total / pageSize)}
+              style={{
+                background: '#e5e7eb',
+                color: '#6b7280',
+                border: 'none',
+                borderRadius: '6px',
+                padding: '8px 16px',
+                fontSize: '14px',
+                cursor: page >= Math.ceil(total / pageSize) ? 'not-allowed' : 'pointer',
+                opacity: page >= Math.ceil(total / pageSize) ? 0.6 : 1
+              }}
+            >
+              다음
+            </button>
+          </div>
         </div>
       )}
 
