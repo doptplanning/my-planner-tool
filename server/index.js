@@ -98,23 +98,15 @@ app.post('/api/notion/connect', auth, async (req, res) => {
       return res.status(400).json({ error: '이 데이터베이스에는 제목(Title) 컬럼이 없습니다. Notion에서 제목 역할의 컬럼을 반드시 포함시켜 주세요.' });
     }
 
-    // Notion API filter: 제목에 검색어 포함
+    // Notion API filter: 제목에 검색어 포함 (본문까지 검색할 경우 filter는 사용하지 않고 전체를 가져옴)
     let filter = undefined;
-    if (search && search.trim() !== '') {
-      filter = {
-        property: titleKey,
-        title: { contains: search }
-      };
-    }
-
-    // 페이지네이션: Notion은 100개씩만 반환하므로, 전체 결과를 모두 모은다
+    let allResults = [];
     let hasMore = true;
     let start_cursor = undefined;
-    let allResults = [];
     while (hasMore) {
       const response = await notion.databases.query({
         database_id: databaseId,
-        filter,
+        // filter는 사용하지 않음 (본문까지 검색 위해 전체 조회)
         start_cursor,
         page_size: 100
       });
@@ -122,10 +114,39 @@ app.post('/api/notion/connect', auth, async (req, res) => {
       hasMore = response.has_more;
       start_cursor = response.next_cursor;
     }
+    // 검색어가 있으면 제목/컬럼/본문까지 검사
+    let matchedResults = allResults;
+    if (search && search.trim() !== '') {
+      matchedResults = [];
+      for (const pageObj of allResults) {
+        let isMatch = false;
+        // 제목 컬럼 검사
+        if (titleKey && pageObj.properties[titleKey] && pageObj.properties[titleKey].title && pageObj.properties[titleKey].title.length > 0) {
+          const titleText = pageObj.properties[titleKey].title.map(text => text.plain_text).join(' ');
+          if (titleText.toLowerCase().includes(search.toLowerCase())) isMatch = true;
+        }
+        // (필요시 다른 컬럼도 검사 가능)
+        // 본문(블록) 검사
+        if (!isMatch) {
+          const blocks = await notion.blocks.children.list({ block_id: pageObj.id });
+          for (const block of blocks.results) {
+            if (
+              (block.type === 'paragraph' || block.type === 'heading_1' || block.type === 'heading_2') &&
+              block[block.type].rich_text &&
+              block[block.type].rich_text.some(text => text.plain_text && text.plain_text.toLowerCase().includes(search.toLowerCase()))
+            ) {
+              isMatch = true;
+              break;
+            }
+          }
+        }
+        if (isMatch) matchedResults.push(pageObj);
+      }
+    }
     // 전체 개수
-    const total = allResults.length;
+    const total = matchedResults.length;
     // 현재 페이지에 해당하는 20개만 추출
-    const pagedResults = allResults.slice((page - 1) * pageSize, page * pageSize);
+    const pagedResults = matchedResults.slice((page - 1) * pageSize, page * pageSize);
     const pages = [];
     for (const pageObj of pagedResults) {
       try {
