@@ -39,6 +39,10 @@ const NotionTrainingPage: React.FC = () => {
   const [page, setPage] = useState(1);
   const [pageSize] = useState(20);
   const [total, setTotal] = useState(0);
+  const [chatInput, setChatInput] = useState('');
+  const [chatHistory, setChatHistory] = useState<{ role: 'user' | 'ai'; content: string }[]>([]);
+  const [chatLoading, setChatLoading] = useState(false);
+  const [chatError, setChatError] = useState('');
 
   useEffect(() => {
     if (user?.role === 'admin') {
@@ -177,6 +181,35 @@ const NotionTrainingPage: React.FC = () => {
   const handlePageChange = (newPage: number) => {
     setPage(newPage);
     handleConnectNotion({ page: newPage });
+  };
+
+  // 챗봇 질문 전송 핸들러
+  const handleSendChat = async () => {
+    if (!chatInput.trim()) return;
+    setChatLoading(true);
+    setChatError('');
+    setChatHistory(prev => [...prev, { role: 'user', content: chatInput }]);
+    try {
+      const response = await fetch(`${API_BASE}/api/notion/ai-chat`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        },
+        body: JSON.stringify({ message: chatInput })
+      });
+      const data = await response.json();
+      if (response.ok) {
+        setChatHistory(prev => [...prev, { role: 'ai', content: data.answer }]);
+        setChatInput('');
+      } else {
+        setChatError(data.error || 'AI 답변 생성에 실패했습니다.');
+      }
+    } catch (e) {
+      setChatError('AI 답변 생성 중 오류가 발생했습니다.');
+    } finally {
+      setChatLoading(false);
+    }
   };
 
   return (
@@ -675,6 +708,49 @@ const NotionTrainingPage: React.FC = () => {
           <li>연결 후 학습할 페이지들을 선택하세요.</li>
           <li>AI 학습을 시작하면 선택된 페이지의 내용으로 모델이 학습됩니다.</li>
         </ol>
+      </div>
+
+      {/* 챗봇 UI */}
+      <div style={{ marginTop: '48px', background: '#f9fafb', border: '1px solid #e5e7eb', borderRadius: '12px', padding: '32px', maxWidth: 700, marginLeft: 'auto', marginRight: 'auto' }}>
+        <h2 style={{ fontSize: '1.3rem', fontWeight: 600, marginBottom: 16, color: '#111' }}>학습된 AI와 대화하기</h2>
+        <div style={{ minHeight: 120, marginBottom: 16 }}>
+          {chatHistory.length === 0 && <div style={{ color: '#6b7280' }}>AI에게 궁금한 점을 자유롭게 물어보세요!</div>}
+          {chatHistory.map((msg, idx) => (
+            <div key={idx} style={{ marginBottom: 10, textAlign: msg.role === 'user' ? 'right' : 'left' }}>
+              <span style={{
+                display: 'inline-block',
+                background: msg.role === 'user' ? '#dbeafe' : '#fff',
+                color: '#111',
+                borderRadius: 8,
+                padding: '8px 14px',
+                maxWidth: 400,
+                wordBreak: 'break-word',
+                fontSize: 15,
+                boxShadow: msg.role === 'ai' ? '0 2px 8px rgba(0,0,0,0.04)' : undefined
+              }}>{msg.content}</span>
+            </div>
+          ))}
+          {chatLoading && <div style={{ color: '#3b82f6', marginTop: 8 }}>AI가 답변을 생성 중입니다...</div>}
+          {chatError && <div style={{ color: '#ef4444', marginTop: 8 }}>{chatError}</div>}
+        </div>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <input
+            type="text"
+            value={chatInput}
+            onChange={e => setChatInput(e.target.value)}
+            onKeyDown={e => { if (e.key === 'Enter' && !chatLoading) handleSendChat(); }}
+            placeholder="AI에게 질문을 입력하세요"
+            style={{ flex: 1, padding: '12px', border: '1px solid #d1d5db', borderRadius: 8, fontSize: 15 }}
+            disabled={chatLoading}
+          />
+          <button
+            onClick={handleSendChat}
+            disabled={chatLoading || !chatInput.trim()}
+            style={{ background: '#3b82f6', color: 'white', border: 'none', borderRadius: 8, padding: '12px 24px', fontSize: 15, fontWeight: 600, cursor: chatLoading ? 'not-allowed' : 'pointer', opacity: chatLoading || !chatInput.trim() ? 0.6 : 1 }}
+          >
+            전송
+          </button>
+        </div>
       </div>
     </div>
   );

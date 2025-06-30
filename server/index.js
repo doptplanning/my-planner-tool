@@ -427,5 +427,41 @@ app.post('/api/generate-pdf', async (req, res) => {
   });
 });
 
+// 노션 학습페이지용 AI 대화 API
+app.post('/api/notion/ai-chat', auth, async (req, res) => {
+  const { message } = req.body;
+  try {
+    // 최근 학습된 aiRaw 불러오기
+    const lastTraining = await Training.findOne({ userId: req.user.id, status: 'completed' }).sort({ createdAt: -1 });
+    const context = lastTraining?.aiRaw || lastTraining?.result || '';
+    if (!context) {
+      return res.status(400).json({ error: '학습된 데이터가 없습니다. 먼저 노션 학습을 진행해 주세요.' });
+    }
+    const prompt = `아래는 노션에서 학습한 내용입니다. 이 내용을 참고해서 사용자의 질문에 답변해줘.\n\n[학습 내용]\n${context}\n\n[사용자 질문]\n${message}`;
+    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        model: 'gpt-4o',
+        messages: [
+          { role: 'system', content: '너는 노션에서 학습한 내용을 바탕으로 전문적으로 답변하는 AI 어시스턴트야.' },
+          { role: 'user', content: prompt }
+        ],
+        max_tokens: 1000,
+        temperature: 0.7
+      })
+    });
+    const data = await response.json();
+    const answer = data.choices?.[0]?.message?.content || '';
+    res.json({ answer });
+  } catch (error) {
+    console.error('AI 대화 오류:', error);
+    res.status(500).json({ error: 'AI 대화 생성에 실패했습니다.' });
+  }
+});
+
 const PORT = process.env.PORT || 3001;
 app.listen(PORT, () => console.log(`Server running on ${PORT}`)); 
