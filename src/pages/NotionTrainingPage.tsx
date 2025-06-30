@@ -280,38 +280,6 @@ const NotionTrainingPage: React.FC = () => {
         <h2 style={{ fontSize: '1.5rem', fontWeight: '600', marginBottom: '20px', color: '#111' }}>
           노션 데이터베이스 연결
         </h2>
-        {/* 검색 UI */}
-        <div style={{ display: 'flex', alignItems: 'center', marginBottom: '16px', gap: '8px' }}>
-          <input
-            type="text"
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            placeholder="제목 검색어 입력"
-            style={{
-              flex: 1,
-              padding: '12px',
-              border: '1px solid #d1d5db',
-              borderRadius: '8px',
-              fontSize: '14px'
-            }}
-          />
-          <button
-            onClick={handleSearch}
-            style={{
-              background: '#3b82f6',
-              color: 'white',
-              border: 'none',
-              borderRadius: '8px',
-              padding: '12px 24px',
-              fontSize: '14px',
-              fontWeight: '600',
-              cursor: 'pointer'
-            }}
-          >
-            검색
-          </button>
-        </div>
-        
         <div style={{ marginBottom: '16px' }}>
           <label style={{ display: 'block', marginBottom: '8px', fontWeight: '500', color: '#374151' }}>
             노션 Integration Token
@@ -330,7 +298,6 @@ const NotionTrainingPage: React.FC = () => {
             }}
           />
         </div>
-
         <div style={{ marginBottom: '20px' }}>
           <label style={{ display: 'block', marginBottom: '8px', fontWeight: '500', color: '#374151' }}>
             데이터베이스 ID
@@ -349,7 +316,6 @@ const NotionTrainingPage: React.FC = () => {
             }}
           />
         </div>
-
         <button
           onClick={() => handleConnectNotion()}
           disabled={isLoading}
@@ -410,6 +376,36 @@ const NotionTrainingPage: React.FC = () => {
           borderRadius: '12px',
           border: '1px solid #e5e7eb'
         }}>
+          <div style={{ display: 'flex', alignItems: 'center', marginBottom: '16px', gap: '8px' }}>
+            <input
+              type="text"
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              placeholder="제목 검색어 입력"
+              style={{
+                flex: 1,
+                padding: '12px',
+                border: '1px solid #d1d5db',
+                borderRadius: '8px',
+                fontSize: '14px'
+              }}
+            />
+            <button
+              onClick={handleSearch}
+              style={{
+                background: '#3b82f6',
+                color: 'white',
+                border: 'none',
+                borderRadius: '8px',
+                padding: '12px 24px',
+                fontSize: '14px',
+                fontWeight: '600',
+                cursor: 'pointer'
+              }}
+            >
+              검색
+            </button>
+          </div>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
             <h2 style={{ fontSize: '1.5rem', fontWeight: '600', color: '#111' }}>
               학습할 페이지 선택 ({pages.length}개)
