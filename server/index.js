@@ -139,12 +139,13 @@ app.post('/api/notion/connect', auth, async (req, res) => {
             content += block.numbered_list_item.rich_text.map(text => text.plain_text).join(' ') + '\n';
           }
         }
-        // 페이지 제목 추출
+        // 페이지 제목 추출 (type이 'title'인 컬럼 자동 감지)
         let title = '제목 없음';
-        if (pageObj.properties.title && pageObj.properties.title.title.length > 0) {
-          title = pageObj.properties.title.title.map(text => text.plain_text).join(' ');
-        } else if (pageObj.properties.Name && pageObj.properties.Name.title.length > 0) {
-          title = pageObj.properties.Name.title.map(text => text.plain_text).join(' ');
+        const titleProp = Object.values(pageObj.properties).find(
+          prop => prop.type === 'title' && prop.title && prop.title.length > 0
+        );
+        if (titleProp) {
+          title = titleProp.title.map(text => text.plain_text).join(' ');
         }
         pages.push({
           id: pageObj.id,
