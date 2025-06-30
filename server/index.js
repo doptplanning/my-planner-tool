@@ -92,6 +92,7 @@ app.post('/api/notion/connect', auth, async (req, res) => {
     const titleKey = Object.entries(dbMeta.properties).find(
       ([, prop]) => prop.type === 'title'
     )?.[0];
+    console.log('감지된 Notion 제목 컬럼명(titleKey):', titleKey);
 
     if (!titleKey) {
       return res.status(400).json({ error: '이 데이터베이스에는 제목(Title) 컬럼이 없습니다. Notion에서 제목 역할의 컬럼을 반드시 포함시켜 주세요.' });
