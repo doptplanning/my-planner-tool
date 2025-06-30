@@ -35,6 +35,7 @@ const NotionTrainingPage: React.FC = () => {
   const [trainingHistory, setTrainingHistory] = useState<TrainingHistory[]>([]);
   const [showHistory, setShowHistory] = useState(false);
   const [previewPage, setPreviewPage] = useState<NotionPage | null>(null);
+  const [embedPageId, setEmbedPageId] = useState<string | null>(null);
 
   useEffect(() => {
     if (user?.role === 'admin') {
@@ -430,6 +431,22 @@ const NotionTrainingPage: React.FC = () => {
                   >
                     미리보기
                   </button>
+                  <button
+                    onClick={e => { e.stopPropagation(); setEmbedPageId(page.id); }}
+                    style={{
+                      marginLeft: '8px',
+                      background: '#fef9c3',
+                      color: '#b45309',
+                      border: 'none',
+                      borderRadius: '6px',
+                      padding: '4px 12px',
+                      fontSize: '13px',
+                      cursor: 'pointer',
+                      fontWeight: 500
+                    }}
+                  >
+                    원본 페이지 보기
+                  </button>
                 </div>
                 <p style={{ 
                   fontSize: '14px', 
@@ -518,7 +535,6 @@ const NotionTrainingPage: React.FC = () => {
                 </button>
                 <h2 style={{ fontSize: '1.3rem', fontWeight: '600', marginBottom: '16px', color: '#111', display: 'flex', alignItems: 'center' }}>
                   {previewPage.title}
-                  {/* 노션 페이지 링크 */}
                   <a
                     href={`https://www.notion.so/${previewPage.id.replace(/-/g, '')}`}
                     target="_blank"
@@ -539,6 +555,68 @@ const NotionTrainingPage: React.FC = () => {
                 <div style={{ fontSize: '15px', color: '#374151', whiteSpace: 'pre-line' }}>{previewPage.content}</div>
                 <div style={{ fontSize: '12px', color: '#9ca3af', marginTop: '16px' }}>
                   마지막 수정: {new Date(previewPage.lastEdited).toLocaleString()}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* 원본 페이지 임베드 모달 */}
+          {embedPageId && (
+            <div style={{
+              position: 'fixed',
+              top: 0,
+              left: 0,
+              width: '100vw',
+              height: '100vh',
+              background: 'rgba(0,0,0,0.3)',
+              zIndex: 1100,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center'
+            }}
+              onClick={() => setEmbedPageId(null)}
+            >
+              <div style={{
+                background: '#fff',
+                borderRadius: '12px',
+                padding: '0',
+                maxWidth: '900px',
+                width: '95vw',
+                height: '80vh',
+                boxShadow: '0 4px 24px rgba(0,0,0,0.15)',
+                position: 'relative',
+                display: 'flex',
+                flexDirection: 'column'
+              }}
+                onClick={e => e.stopPropagation()}
+              >
+                <button
+                  onClick={() => setEmbedPageId(null)}
+                  style={{
+                    position: 'absolute',
+                    top: 16,
+                    right: 16,
+                    background: 'transparent',
+                    border: 'none',
+                    fontSize: '20px',
+                    cursor: 'pointer',
+                    color: '#6b7280',
+                    zIndex: 2
+                  }}
+                  aria-label="닫기"
+                >
+                  ×
+                </button>
+                <div style={{ flex: 1, minHeight: 0 }}>
+                  <iframe
+                    src={`https://www.notion.so/${embedPageId.replace(/-/g, '')}`}
+                    style={{ width: '100%', height: '100%', border: 'none', borderRadius: '0 0 12px 12px' }}
+                    allowFullScreen
+                    title="Notion 원본 페이지"
+                  />
+                </div>
+                <div style={{ padding: '12px 24px', background: '#fef3c7', borderRadius: '0 0 12px 12px', fontSize: '14px', color: '#b45309', textAlign: 'center' }}>
+                  ※ Notion 페이지가 "웹에 공유"로 공개되어 있어야 임베드가 가능합니다. 비공개 페이지는 보이지 않을 수 있습니다.
                 </div>
               </div>
             </div>
