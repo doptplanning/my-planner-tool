@@ -87,15 +87,18 @@ app.post('/api/notion/connect', auth, async (req, res) => {
   
   try {
     const notion = new Client({ auth: notionToken });
-    
+    // 데이터베이스의 title 컬럼명 감지
+    const dbMeta = await notion.databases.retrieve({ database_id: databaseId });
+    const titleKey = Object.entries(dbMeta.properties).find(
+      ([, prop]) => prop.type === 'title'
+    )?.[0];
+
     // Notion API filter: 제목에 검색어 포함
     let filter = undefined;
-    if (search && search.trim() !== '') {
+    if (search && search.trim() !== '' && titleKey) {
       filter = {
-        or: [
-          { property: 'title', title: { contains: search } },
-          { property: 'Name', title: { contains: search } }
-        ]
+        property: titleKey,
+        title: { contains: search }
       };
     }
 
@@ -118,7 +121,6 @@ app.post('/api/notion/connect', auth, async (req, res) => {
     const total = allResults.length;
     // 현재 페이지에 해당하는 20개만 추출
     const pagedResults = allResults.slice((page - 1) * pageSize, page * pageSize);
-
     const pages = [];
     for (const pageObj of pagedResults) {
       try {
@@ -141,11 +143,8 @@ app.post('/api/notion/connect', auth, async (req, res) => {
         }
         // 페이지 제목 추출 (type이 'title'인 컬럼 자동 감지)
         let title = '제목 없음';
-        const titleProp = Object.values(pageObj.properties).find(
-          prop => prop.type === 'title' && prop.title && prop.title.length > 0
-        );
-        if (titleProp) {
-          title = titleProp.title.map(text => text.plain_text).join(' ');
+        if (titleKey && pageObj.properties[titleKey] && pageObj.properties[titleKey].title && pageObj.properties[titleKey].title.length > 0) {
+          title = pageObj.properties[titleKey].title.map(text => text.plain_text).join(' ');
         }
         pages.push({
           id: pageObj.id,
