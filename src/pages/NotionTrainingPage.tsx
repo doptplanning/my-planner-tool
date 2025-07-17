@@ -271,6 +271,14 @@ const NotionTrainingPage: React.FC = () => {
 
   return (
     <div style={{ padding: '32px', maxWidth: '1200px', margin: '0 auto' }}>
+      <style>
+        {`
+          @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+          }
+        `}
+      </style>
       <h1 style={{ fontSize: '2rem', fontWeight: 'bold', marginBottom: '32px', color: '#111' }}>
         노션 AI 학습 페이지
       </h1>
@@ -904,25 +912,161 @@ const NotionTrainingPage: React.FC = () => {
         {/* 챗봇 UI */}
         <div style={{ flex: 1, minWidth: 340, background: '#f9fafb', border: '1px solid #e5e7eb', borderRadius: '12px', padding: '32px' }}>
           <h2 style={{ fontSize: '1.3rem', fontWeight: 600, marginBottom: 16, color: '#111' }}>학습된 AI와 대화하기</h2>
-          <div style={{ minHeight: 120, marginBottom: 16 }}>
+          <div style={{ minHeight: 120, marginBottom: 16, maxHeight: '400px', overflowY: 'auto' }}>
             {chatHistory.length === 0 && <div style={{ color: '#6b7280' }}>AI에게 궁금한 점을 자유롭게 물어보세요! (이미지 첨부도 가능)</div>}
             {chatHistory.map((msg, idx) => (
-              <div key={idx} style={{ marginBottom: 10, textAlign: msg.role === 'user' ? 'right' : 'left' }}>
-                <span style={{
+              <div key={idx} style={{ marginBottom: 16, textAlign: msg.role === 'user' ? 'right' : 'left' }}>
+                <div style={{
                   display: 'inline-block',
                   background: msg.role === 'user' ? '#dbeafe' : '#fff',
                   color: '#111',
-                  borderRadius: 8,
-                  padding: '8px 14px',
-                  maxWidth: 400,
+                  borderRadius: 12,
+                  padding: '12px 16px',
+                  maxWidth: '100%',
                   wordBreak: 'break-word',
                   fontSize: 15,
-                  boxShadow: msg.role === 'ai' ? '0 2px 8px rgba(0,0,0,0.04)' : undefined
-                }}>{msg.content}</span>
+                  boxShadow: msg.role === 'ai' ? '0 2px 8px rgba(0,0,0,0.04)' : undefined,
+                  textAlign: 'left'
+                }}>
+                  {msg.role === 'ai' ? (
+                    <div style={{ whiteSpace: 'pre-wrap' }}>
+                      {msg.content.split('\n').map((line, lineIdx) => {
+                        // 테이블 처리
+                        if (line.trim().startsWith('|') && line.trim().endsWith('|')) {
+                          const cells = line.split('|').filter(cell => cell.trim() !== '');
+                          return (
+                            <div key={lineIdx} style={{ 
+                              display: 'flex', 
+                              borderBottom: line.includes('---') ? 'none' : '1px solid #e5e7eb',
+                              background: line.includes('---') ? '#f9fafb' : 'transparent',
+                              fontWeight: line.includes('---') ? '600' : 'normal'
+                            }}>
+                              {cells.map((cell, cellIdx) => (
+                                <div key={cellIdx} style={{
+                                  flex: 1,
+                                  padding: '8px 12px',
+                                  borderRight: cellIdx < cells.length - 1 ? '1px solid #e5e7eb' : 'none',
+                                  textAlign: 'center',
+                                  fontSize: line.includes('---') ? '13px' : '14px'
+                                }}>
+                                  {cell.trim()}
+                                </div>
+                              ))}
+                            </div>
+                          );
+                        }
+                        // 제목 처리
+                        if (line.startsWith('#')) {
+                          const level = line.match(/^#+/)?.[0].length || 1;
+                          const fontSize = level === 1 ? '20px' : level === 2 ? '18px' : '16px';
+                          const fontWeight = level === 1 ? '700' : level === 2 ? '600' : '500';
+                          return (
+                            <div key={lineIdx} style={{ 
+                              fontSize, 
+                              fontWeight, 
+                              marginTop: level === 1 ? '16px' : '12px', 
+                              marginBottom: '8px',
+                              color: '#111'
+                            }}>
+                              {line.replace(/^#+\s*/, '')}
+                            </div>
+                          );
+                        }
+                        // 리스트 처리
+                        if (line.trim().startsWith('- ') || line.trim().startsWith('* ')) {
+                          return (
+                            <div key={lineIdx} style={{ 
+                              display: 'flex', 
+                              alignItems: 'flex-start', 
+                              marginBottom: '4px',
+                              paddingLeft: '8px'
+                            }}>
+                              <span style={{ marginRight: '8px', color: '#6b7280' }}>•</span>
+                              <span>{line.replace(/^[-*]\s*/, '')}</span>
+                            </div>
+                          );
+                        }
+                        // 번호 리스트 처리
+                        if (/^\d+\.\s/.test(line.trim())) {
+                          return (
+                            <div key={lineIdx} style={{ 
+                              display: 'flex', 
+                              alignItems: 'flex-start', 
+                              marginBottom: '4px',
+                              paddingLeft: '8px'
+                            }}>
+                              <span style={{ marginRight: '8px', color: '#6b7280', minWidth: '20px' }}>
+                                {line.match(/^\d+/)?.[0]}.
+                              </span>
+                              <span>{line.replace(/^\d+\.\s*/, '')}</span>
+                            </div>
+                          );
+                        }
+                        // 강조 처리
+                        if (line.includes('**')) {
+                          const parts = line.split('**');
+                          return (
+                            <div key={lineIdx}>
+                              {parts.map((part, partIdx) => (
+                                <span key={partIdx} style={{ 
+                                  fontWeight: partIdx % 2 === 1 ? '600' : 'normal' 
+                                }}>
+                                  {part}
+                                </span>
+                              ))}
+                            </div>
+                          );
+                        }
+                        // 일반 텍스트
+                        return <div key={lineIdx}>{line}</div>;
+                      })}
+                    </div>
+                  ) : (
+                    <div>{msg.content}</div>
+                  )}
+                </div>
               </div>
             ))}
-            {chatLoading && <div style={{ color: '#3b82f6', marginTop: 8 }}>AI가 답변을 생성 중입니다...</div>}
-            {chatError && <div style={{ color: '#ef4444', marginTop: 8 }}>{chatError}</div>}
+            {chatLoading && (
+              <div style={{ textAlign: 'left', marginBottom: 16 }}>
+                <div style={{
+                  display: 'inline-block',
+                  background: '#fff',
+                  color: '#3b82f6',
+                  borderRadius: 12,
+                  padding: '12px 16px',
+                  fontSize: 15,
+                  boxShadow: '0 2px 8px rgba(0,0,0,0.04)'
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <div style={{ 
+                      width: '16px', 
+                      height: '16px', 
+                      border: '2px solid #e5e7eb', 
+                      borderTop: '2px solid #3b82f6', 
+                      borderRadius: '50%', 
+                      animation: 'spin 1s linear infinite' 
+                    }}></div>
+                    AI가 답변을 생성 중입니다...
+                  </div>
+                </div>
+              </div>
+            )}
+            {chatError && (
+              <div style={{ textAlign: 'left', marginBottom: 16 }}>
+                <div style={{
+                  display: 'inline-block',
+                  background: '#fef2f2',
+                  color: '#ef4444',
+                  borderRadius: 12,
+                  padding: '12px 16px',
+                  fontSize: 15,
+                  border: '1px solid #fecaca'
+                }}>
+                  {chatError}
+                </div>
+              </div>
+            )}
           </div>
           {/* 이미지 미리보기 */}
           {chatImages.length > 0 && (
