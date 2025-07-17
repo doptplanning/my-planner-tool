@@ -20,6 +20,12 @@ interface TrainingHistory {
   result: string;
   createdAt: string;
   pageIds: string[];
+  trainedPages?: Array<{
+    id: string;
+    title: string;
+    status: 'success' | 'failed' | 'pending';
+    error?: string;
+  }>;
 }
 
 const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:3001';
@@ -34,6 +40,7 @@ const NotionTrainingPage: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [trainingHistory, setTrainingHistory] = useState<TrainingHistory[]>([]);
   const [showHistory, setShowHistory] = useState(false);
+  const [showTrainedPages, setShowTrainedPages] = useState(false);
   const [previewPage, setPreviewPage] = useState<NotionPage | null>(null);
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
@@ -158,6 +165,9 @@ const NotionTrainingPage: React.FC = () => {
       case 'success': return '#10b981';
       case 'error': return '#ef4444';
       case 'loading': return '#3b82f6';
+      case 'completed': return '#10b981';
+      case 'failed': return '#ef4444';
+      case 'pending': return '#f59e0b';
       default: return '#6b7280';
     }
   };
@@ -168,8 +178,34 @@ const NotionTrainingPage: React.FC = () => {
       case 'processing': return '처리 중';
       case 'failed': return '실패';
       case 'pending': return '대기 중';
+      case 'success': return '성공';
+      case 'error': return '오류';
       default: return status;
     }
+  };
+
+  // 학습된 페이지들의 상태를 확인하는 함수
+  const getPageTrainingStatus = (pageId: string) => {
+    for (const training of trainingHistory) {
+      if (training.pageIds.includes(pageId)) {
+        if (training.trainedPages) {
+          const pageTraining = training.trainedPages.find(p => p.id === pageId);
+          if (pageTraining) {
+            return {
+              status: pageTraining.status,
+              trainingId: training._id,
+              createdAt: training.createdAt
+            };
+          }
+        }
+        return {
+          status: training.status === 'completed' ? 'success' : training.status,
+          trainingId: training._id,
+          createdAt: training.createdAt
+        };
+      }
+    }
+    return null;
   };
 
   // 검색 핸들러
@@ -240,7 +276,7 @@ const NotionTrainingPage: React.FC = () => {
       </h1>
 
       {/* 학습 히스토리 버튼 */}
-      <div style={{ marginBottom: '24px' }}>
+      <div style={{ marginBottom: '24px', display: 'flex', gap: '12px' }}>
         <button
           onClick={() => setShowHistory(!showHistory)}
           style={{
@@ -256,7 +292,158 @@ const NotionTrainingPage: React.FC = () => {
         >
           {showHistory ? '히스토리 숨기기' : '학습 히스토리 보기'}
         </button>
+        <button
+          onClick={() => setShowTrainedPages(!showTrainedPages)}
+          style={{
+            background: '#10b981',
+            color: 'white',
+            border: 'none',
+            borderRadius: '8px',
+            padding: '12px 24px',
+            fontSize: '14px',
+            fontWeight: '600',
+            cursor: 'pointer'
+          }}
+        >
+          {showTrainedPages ? '학습된 페이지 숨기기' : '학습된 페이지 확인'}
+        </button>
       </div>
+
+      {/* 학습된 페이지 확인 */}
+      {showTrainedPages && (
+        <div style={{ 
+          background: '#fff', 
+          padding: '24px', 
+          borderRadius: '12px',
+          border: '1px solid #e5e7eb',
+          marginBottom: '32px'
+        }}>
+          <h2 style={{ fontSize: '1.5rem', fontWeight: '600', marginBottom: '20px', color: '#111' }}>
+            학습된 페이지 현황
+          </h2>
+          {pages === null ? (
+            <p style={{ color: '#6b7280', textAlign: 'center', padding: '40px' }}>
+              먼저 노션 데이터베이스를 연결해주세요.
+            </p>
+                     ) : pages && pages.length === 0 ? (
+             <p style={{ color: '#6b7280', textAlign: 'center', padding: '40px' }}>
+               연결된 페이지가 없습니다.
+             </p>
+           ) : pages ? (
+             <div style={{ maxHeight: '400px', overflowY: 'auto' }}>
+               {pages.map((page) => {
+                 const trainingStatus = getPageTrainingStatus(page.id);
+                 return (
+                   <div
+                     key={page.id}
+                     style={{
+                       padding: '16px',
+                       border: '1px solid #e5e7eb',
+                       borderRadius: '8px',
+                       marginBottom: '12px',
+                       background: trainingStatus ? '#f0fdf4' : '#fff',
+                       position: 'relative'
+                     }}
+                   >
+                     <div style={{ display: 'flex', alignItems: 'center', marginBottom: '8px' }}>
+                       <h3 style={{ fontSize: '16px', fontWeight: '600', color: '#111', margin: 0, flex: 1 }}>
+                         {page.title}
+                       </h3>
+                       {trainingStatus ? (
+                         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                           <span style={{
+                             padding: '4px 8px',
+                             borderRadius: '4px',
+                             fontSize: '12px',
+                             fontWeight: '600',
+                             background: getStatusColor(trainingStatus.status) === '#10b981' ? '#d1fae5' : 
+                                        getStatusColor(trainingStatus.status) === '#ef4444' ? '#fee2e2' : '#fef3c7',
+                             color: getStatusColor(trainingStatus.status) === '#10b981' ? '#065f46' : 
+                                    getStatusColor(trainingStatus.status) === '#ef4444' ? '#991b1b' : '#92400e'
+                           }}>
+                             {getStatusText(trainingStatus.status)}
+                           </span>
+                           <span style={{ fontSize: '12px', color: '#6b7280' }}>
+                             {new Date(trainingStatus.createdAt).toLocaleDateString()}
+                           </span>
+                         </div>
+                       ) : (
+                         <span style={{
+                           padding: '4px 8px',
+                           borderRadius: '4px',
+                           fontSize: '12px',
+                           fontWeight: '600',
+                           background: '#f3f4f6',
+                           color: '#6b7280'
+                         }}>
+                           미학습
+                         </span>
+                       )}
+                     </div>
+                     <p style={{ 
+                       fontSize: '14px', 
+                       color: '#6b7280', 
+                       margin: '0 0 8px 0',
+                       display: '-webkit-box',
+                       WebkitLineClamp: 2,
+                       WebkitBoxOrient: 'vertical',
+                       overflow: 'hidden'
+                     }}>
+                       {page.content}
+                     </p>
+                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                       <span style={{ fontSize: '12px', color: '#9ca3af' }}>
+                         마지막 수정: {new Date(page.lastEdited).toLocaleDateString()}
+                       </span>
+                       {trainingStatus && (
+                         <button
+                           onClick={() => {
+                             const training = trainingHistory.find(t => t._id === trainingStatus.trainingId);
+                             if (training) {
+                               alert(`학습 결과:\n${training.result || '상세 결과 없음'}`);
+                             }
+                           }}
+                           style={{
+                             background: '#e0e7ff',
+                             color: '#3730a3',
+                             border: 'none',
+                             borderRadius: '6px',
+                             padding: '4px 12px',
+                             fontSize: '13px',
+                             cursor: 'pointer',
+                             fontWeight: 500
+                           }}
+                         >
+                           학습 결과 보기
+                         </button>
+                       )}
+                     </div>
+                   </div>
+                 );
+               })}
+             </div>
+           ) : null}
+           {pages && pages.length > 0 && (
+             <div style={{ marginTop: '16px', padding: '16px', background: '#f9fafb', borderRadius: '8px' }}>
+               <h4 style={{ fontSize: '14px', fontWeight: '600', marginBottom: '8px', color: '#374151' }}>
+                 학습 현황 요약
+               </h4>
+               <div style={{ display: 'flex', gap: '16px', fontSize: '14px' }}>
+                 <span>전체 페이지: <strong>{pages.length}개</strong></span>
+                 <span>학습 완료: <strong style={{ color: '#10b981' }}>
+                   {pages.filter(p => getPageTrainingStatus(p.id)?.status === 'success').length}개
+                 </strong></span>
+                 <span>학습 실패: <strong style={{ color: '#ef4444' }}>
+                   {pages.filter(p => getPageTrainingStatus(p.id)?.status === 'failed').length}개
+                 </strong></span>
+                 <span>미학습: <strong style={{ color: '#6b7280' }}>
+                   {pages.filter(p => !getPageTrainingStatus(p.id)).length}개
+                 </strong></span>
+               </div>
+             </div>
+           )}
+        </div>
+      )}
 
       {/* 학습 히스토리 */}
       {showHistory && (

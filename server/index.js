@@ -437,9 +437,9 @@ app.post('/api/notion/ai-chat', auth, async (req, res) => {
     if (!context) {
       return res.status(400).json({ error: '학습된 데이터가 없습니다. 먼저 노션 학습을 진행해 주세요.' });
     }
-    // 텍스트+이미지 메시지 구성
+    // 텍스트+이미지 메시지 구성 (프롬프트 개선)
     const userMessages = [
-      { type: 'text', text: `아래는 노션에서 학습한 내용입니다. 이 내용을 참고해서 사용자의 질문에 답변해줘.\n\n[학습 내용]\n${context}\n\n[사용자 질문]\n${message}` }
+      { type: 'text', text: `아래는 노션에서 학습한 내용입니다. 이 내용을 참고해서 사용자의 질문에 답변해줘.\n\n- 반드시 표, 리스트, 마크다운 등으로 예쁘고 구조화되게 정리해줘.\n- 항목별로 구분해서, 핵심 요약/USP/특징 등은 표로, 설명은 리스트로, 강조할 부분은 볼드 처리해줘.\n- 불필요한 코드블록이나 JSON 없이, 바로 보기 좋은 형태로 출력해줘.\n\n[학습 내용]\n${context}\n\n[사용자 질문]\n${message}` }
     ];
     if (images && Array.isArray(images)) {
       images.forEach((imageBase64) => {
