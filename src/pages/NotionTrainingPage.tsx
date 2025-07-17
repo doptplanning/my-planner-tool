@@ -51,8 +51,6 @@ const NotionTrainingPage: React.FC = () => {
   const [chatLoading, setChatLoading] = useState(false);
   const [chatError, setChatError] = useState('');
   const [chatImages, setChatImages] = useState<string[]>([]);
-  const [showBriefSample, setShowBriefSample] = useState(false);
-  const [showSampleQuestions, setShowSampleQuestions] = useState(false);
 
   useEffect(() => {
     if (user?.role === 'admin') {
@@ -322,7 +320,6 @@ const NotionTrainingPage: React.FC = () => {
 💡 **팁**: 위 항목들을 미리 준비해두시면 더 정확하고 효과적인 브리프 작성이 가능합니다!`;
 
     setChatHistory(prev => [...prev, { role: 'ai', content: briefSample }]);
-    setShowBriefSample(false);
   };
 
   // 샘플 질문 표시 핸들러
@@ -361,7 +358,6 @@ const NotionTrainingPage: React.FC = () => {
 💡 **사용법**: 위 질문들을 참고해서 AI에게 질문해보세요!`;
 
     setChatHistory(prev => [...prev, { role: 'ai', content: sampleQuestions }]);
-    setShowSampleQuestions(false);
   };
 
   // 챗봇 질문 전송 핸들러 (이미지 포함)
