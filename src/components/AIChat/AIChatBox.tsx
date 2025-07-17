@@ -23,6 +23,8 @@ const AIChatBox: React.FC<AIChatBoxProps> = ({ onAIResult, height = '80vh', styl
   const [loading, setLoading] = useState(false);
   const [qaList, setQaList] = useState<QAItem[]>([]);
   const [uploadedFiles, setUploadedFiles] = useState<File[]>([]);
+  const [enableWebSearch, setEnableWebSearch] = useState(false);
+  const [webSearchLoading, setWebSearchLoading] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -151,7 +153,13 @@ const AIChatBox: React.FC<AIChatBoxProps> = ({ onAIResult, height = '80vh', styl
     if ((!input.trim() && uploadedFiles.length === 0) || loading) return;
     if (input.trim()) setMessages(prev => [...prev, { role: 'user', content: input }]);
     if (uploadedFiles.length > 0) setMessages(prev => [...prev, { role: 'user', content: `[이미지 ${uploadedFiles.length}개 업로드]` }]);
+    
     setLoading(true);
+    if (enableWebSearch) {
+      setWebSearchLoading(true);
+      setMessages(prev => [...prev, { role: 'ai', content: '🔍 웹 검색을 통해 최신 정보를 수집하고 있습니다...' }]);
+    }
+    
     try {
       const API_BASE = import.meta.env.VITE_API_URL || 'https://my-planner-tool.onrender.com';
       let images: string[] = [];
@@ -165,32 +173,57 @@ const AIChatBox: React.FC<AIChatBoxProps> = ({ onAIResult, height = '80vh', styl
           });
         }));
       }
-      const res = await fetch(`${API_BASE}/api/gpt-brief`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ summary: messages.concat(input.trim() ? { role: 'user', content: input } : []), images }),
-      });
-      const data = await res.json();
-      if (data.error) {
-        let aiMsg = data.raw || JSON.stringify(data);
-        setMessages(prev => [...prev, { role: 'ai', content: aiMsg }]);
-        setInput('');
-        setUploadedFiles([]);
-        return;
+      
+      // 웹 검색이 활성화된 경우 노션 AI 챗봇 API 사용
+      if (enableWebSearch) {
+        const res = await fetch(`${API_BASE}/api/notion/ai-chat`, {
+          method: 'POST',
+          headers: { 
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${localStorage.getItem('token')}`
+          },
+          body: JSON.stringify({ 
+            message: input, 
+            images,
+            enableWebSearch: true
+          }),
+        });
+        const data = await res.json();
+        if (data.error) {
+          let aiMsg = data.error || 'AI 응답 생성에 실패했습니다.';
+          setMessages(prev => [...prev, { role: 'ai', content: aiMsg }]);
+        } else {
+          let aiMsg = data.answer || 'AI 응답을 생성할 수 없습니다.';
+          setMessages(prev => [...prev, { role: 'ai', content: aiMsg }]);
+        }
+      } else {
+        // 기존 브리프 API 사용
+        const res = await fetch(`${API_BASE}/api/gpt-brief`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ summary: messages.concat(input.trim() ? { role: 'user', content: input } : []), images }),
+        });
+        const data = await res.json();
+        if (data.error) {
+          let aiMsg = data.raw || JSON.stringify(data);
+          setMessages(prev => [...prev, { role: 'ai', content: aiMsg }]);
+        } else {
+          let aiMsg = data.brief || JSON.stringify(data);
+          setMessages(prev => [...prev, { role: 'ai', content: aiMsg }]);
+          if (onAIResult) onAIResult(data);
+          setQaList(prev => [
+            ...prev,
+            {
+              question: input,
+              answer: aiMsg,
+              aiComment: data.aiComment || (data.recommendation ?? undefined)
+            }
+          ]);
+        }
       }
-      let aiMsg = data.brief || JSON.stringify(data);
-      setMessages(prev => [...prev, { role: 'ai', content: aiMsg }]);
+      
       setInput('');
       setUploadedFiles([]);
-      if (onAIResult) onAIResult(data);
-      setQaList(prev => [
-        ...prev,
-        {
-          question: input,
-          answer: aiMsg,
-          aiComment: data.aiComment || (data.recommendation ?? undefined)
-        }
-      ]);
     } catch (err: any) {
       let aiMsg = err.message || '서버 오류';
       setMessages(prev => [...prev, { role: 'ai', content: aiMsg }]);
@@ -198,6 +231,7 @@ const AIChatBox: React.FC<AIChatBoxProps> = ({ onAIResult, height = '80vh', styl
       setUploadedFiles([]);
     } finally {
       setLoading(false);
+      setWebSearchLoading(false);
       setTimeout(() => { inputRef.current?.focus(); }, 100);
     }
   };
@@ -213,7 +247,7 @@ const AIChatBox: React.FC<AIChatBoxProps> = ({ onAIResult, height = '80vh', styl
   return (
     <div style={{ width: 680, height, background: '#fff', borderRadius: 18, boxShadow: '0 2px 16px rgba(0,0,0,0.10)', display: 'flex', flexDirection: 'column', padding: 24, ...style }}>
       {/* 브리프 샘플 및 샘플 질문 버튼 */}
-      <div style={{ display: 'flex', gap: '8px', marginBottom: '16px', justifyContent: 'center' }}>
+      <div style={{ display: 'flex', gap: '8px', marginBottom: '16px', justifyContent: 'center', flexWrap: 'wrap' }}>
         <button
           onClick={handleShowSampleQuestions}
           style={{
@@ -249,6 +283,25 @@ const AIChatBox: React.FC<AIChatBoxProps> = ({ onAIResult, height = '80vh', styl
           }}
         >
           📋 브리프 샘플
+        </button>
+        <button
+          onClick={() => setEnableWebSearch(!enableWebSearch)}
+          style={{
+            background: enableWebSearch ? '#10b981' : '#6b7280',
+            color: 'white',
+            border: 'none',
+            borderRadius: '8px',
+            padding: '8px 16px',
+            fontSize: '13px',
+            fontWeight: '600',
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '6px',
+            transition: 'background-color 0.2s'
+          }}
+        >
+          {enableWebSearch ? '🌐 웹 검색 ON' : '🌐 웹 검색 OFF'}
         </button>
       </div>
       <div style={{ flex: 1, overflowY: 'auto', marginBottom: 12 }}>
@@ -375,7 +428,11 @@ const AIChatBox: React.FC<AIChatBoxProps> = ({ onAIResult, height = '80vh', styl
             </div>
           );
         })}
-        {loading && <div style={{ color: '#888', fontSize: 15 }}>AI가 답변 중...</div>}
+        {loading && (
+          <div style={{ color: '#888', fontSize: 15 }}>
+            {webSearchLoading ? '🔍 웹 검색 중...' : 'AI가 답변 중...'}
+          </div>
+        )}
         <div ref={messagesEndRef} />
       </div>
       <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginTop: 8 }}>

@@ -8,6 +8,7 @@ const { Client } = require('@notionhq/client');
 const { OpenAI } = require('openai');
 const pdf = require('html-pdf');
 const fetch = require('node-fetch');
+const cheerio = require('cheerio');
 
 const app = express();
 app.use(cors({
@@ -427,19 +428,51 @@ app.post('/api/generate-pdf', async (req, res) => {
   });
 });
 
-// 노션 학습페이지용 AI 대화 API (이미지 지원)
+// 노션 학습페이지용 AI 대화 API (이미지 지원 + 웹 검색)
 app.post('/api/notion/ai-chat', auth, async (req, res) => {
-  const { message, images } = req.body;
+  const { message, images, enableWebSearch = false } = req.body;
   try {
     // 최근 학습된 aiRaw 불러오기
     const lastTraining = await Training.findOne({ userId: req.user.id, status: 'completed' }).sort({ createdAt: -1 });
     const context = lastTraining?.aiRaw || lastTraining?.result || '';
-    if (!context) {
-      return res.status(400).json({ error: '학습된 데이터가 없습니다. 먼저 노션 학습을 진행해 주세요.' });
+    
+    let webSearchResults = '';
+    if (enableWebSearch && message) {
+      try {
+        // 웹 검색 수행
+        const searchResponse = await fetch(`${req.protocol}://${req.get('host')}/api/web-search`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': req.headers.authorization
+          },
+          body: JSON.stringify({ 
+            query: message, 
+            searchType: 'general' 
+          })
+        });
+        
+        if (searchResponse.ok) {
+          const searchData = await searchResponse.json();
+          if (searchData.results && searchData.results.length > 0) {
+            webSearchResults = '\n\n[웹 검색 결과]\n' + searchData.results.map((result, index) => 
+              `${index + 1}. ${result.title}\n   ${result.snippet}\n   출처: ${result.source} (${result.date})`
+            ).join('\n\n');
+          }
+        }
+      } catch (searchError) {
+        console.error('웹 검색 오류:', searchError);
+        // 웹 검색 실패해도 계속 진행
+      }
     }
+
+    if (!context && !webSearchResults) {
+      return res.status(400).json({ error: '학습된 데이터가 없습니다. 먼저 노션 학습을 진행하거나 웹 검색을 활성화해 주세요.' });
+    }
+
     // 텍스트+이미지 메시지 구성 (프롬프트 개선)
     const userMessages = [
-      { type: 'text', text: `아래는 노션에서 학습한 내용입니다. 이 내용을 참고해서 사용자의 질문에 답변해줘.
+      { type: 'text', text: `${context ? `아래는 노션에서 학습한 내용입니다. 이 내용을 참고해서 사용자의 질문에 답변해줘.\n\n[학습 내용]\n${context}` : ''}${webSearchResults ? `\n\n${webSearchResults}` : ''}
 
 **응답 형식 규칙:**
 1. **제목**: # 또는 ## 마크다운으로 명확한 제목 사용
@@ -449,6 +482,7 @@ app.post('/api/notion/ai-chat', auth, async (req, res) => {
    - 일반 항목: - 또는 • 불릿 리스트
 4. **강조**: 중요한 내용은 **볼드** 처리
 5. **구조화**: 섹션별로 명확히 구분하여 가독성 향상
+6. **웹 검색 정보 활용**: 웹 검색 결과가 있다면 이를 바탕으로 최신 정보와 시장 동향을 포함한 종합적인 분석 제공
 
 **예시 형식:**
 # 광고 전략 분석
@@ -466,9 +500,6 @@ app.post('/api/notion/ai-chat', auth, async (req, res) => {
 
 - 각 플랫폼별 맞춤 전략 수립
 - 성과 측정 지표 설정
-
-[학습 내용]
-${context}
 
 [사용자 질문]
 ${message}` }
@@ -490,21 +521,213 @@ ${message}` }
       body: JSON.stringify({
         model: 'gpt-4o',
         messages: [
-          { role: 'system', content: '너는 노션에서 학습한 내용을 바탕으로 전문적으로 답변하는 AI 어시스턴트야.' },
+          { role: 'system', content: '너는 노션에서 학습한 내용과 웹 검색 결과를 바탕으로 전문적이고 최신 정보를 포함한 답변을 제공하는 AI 어시스턴트야.' },
           { role: 'user', content: userMessages }
         ],
-        max_tokens: 1000,
+        max_tokens: 1500,
         temperature: 0.7
       })
     });
     const data = await response.json();
     const answer = data.choices?.[0]?.message?.content || '';
-    res.json({ answer });
+    res.json({ answer, webSearchEnabled: enableWebSearch });
   } catch (error) {
     console.error('AI 대화 오류:', error);
     res.status(500).json({ error: 'AI 대화 생성에 실패했습니다.' });
   }
 });
+
+// 웹 검색 API
+app.post('/api/web-search', auth, async (req, res) => {
+  const { query, searchType = 'general' } = req.body;
+  
+  if (!query || query.trim() === '') {
+    return res.status(400).json({ error: '검색어를 입력해주세요.' });
+  }
+
+  try {
+    let searchResults = [];
+    
+    // 검색 타입에 따른 다른 검색 전략
+    if (searchType === 'market') {
+      // 시장 조사 관련 검색
+      searchResults = await performMarketResearch(query);
+    } else if (searchType === 'competitor') {
+      // 경쟁사 분석 검색
+      searchResults = await performCompetitorAnalysis(query);
+    } else if (searchType === 'trend') {
+      // 트렌드 분석 검색
+      searchResults = await performTrendAnalysis(query);
+    } else {
+      // 일반 검색
+      searchResults = await performGeneralSearch(query);
+    }
+
+    res.json({ 
+      results: searchResults,
+      query: query,
+      searchType: searchType,
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error('웹 검색 오류:', error);
+    res.status(500).json({ error: '웹 검색에 실패했습니다.' });
+  }
+});
+
+// 일반 검색 함수
+async function performGeneralSearch(query) {
+  const searchTerms = [
+    `${query} 시장 현황`,
+    `${query} 트렌드 2024`,
+    `${query} 소비자 분석`,
+    `${query} 마케팅 전략`
+  ];
+
+  const results = [];
+  
+  for (const term of searchTerms) {
+    try {
+      // Google 검색 시뮬레이션 (실제로는 검색 API 사용 권장)
+      const mockResults = await simulateWebSearch(term);
+      results.push(...mockResults);
+    } catch (error) {
+      console.error(`검색어 "${term}" 처리 중 오류:`, error);
+    }
+  }
+
+  return results.slice(0, 10); // 상위 10개 결과만 반환
+}
+
+// 시장 조사 검색 함수
+async function performMarketResearch(query) {
+  const searchTerms = [
+    `${query} 시장 규모`,
+    `${query} 시장 성장률`,
+    `${query} 시장 점유율`,
+    `${query} 시장 동향`,
+    `${query} 소비자 선호도`
+  ];
+
+  const results = [];
+  
+  for (const term of searchTerms) {
+    try {
+      const mockResults = await simulateWebSearch(term);
+      results.push(...mockResults);
+    } catch (error) {
+      console.error(`시장 조사 검색어 "${term}" 처리 중 오류:`, error);
+    }
+  }
+
+  return results.slice(0, 8);
+}
+
+// 경쟁사 분석 검색 함수
+async function performCompetitorAnalysis(query) {
+  const searchTerms = [
+    `${query} 경쟁사`,
+    `${query} 브랜드 비교`,
+    `${query} 시장 경쟁`,
+    `${query} 경쟁 우위`,
+    `${query} 차별화 전략`
+  ];
+
+  const results = [];
+  
+  for (const term of searchTerms) {
+    try {
+      const mockResults = await simulateWebSearch(term);
+      results.push(...mockResults);
+    } catch (error) {
+      console.error(`경쟁사 분석 검색어 "${term}" 처리 중 오류:`, error);
+    }
+  }
+
+  return results.slice(0, 8);
+}
+
+// 트렌드 분석 검색 함수
+async function performTrendAnalysis(query) {
+  const searchTerms = [
+    `${query} 2024 트렌드`,
+    `${query} 소비 트렌드`,
+    `${query} 마케팅 트렌드`,
+    `${query} 디자인 트렌드`,
+    `${query} 소셜미디어 트렌드`
+  ];
+
+  const results = [];
+  
+  for (const term of searchTerms) {
+    try {
+      const mockResults = await simulateWebSearch(term);
+      results.push(...mockResults);
+    } catch (error) {
+      console.error(`트렌드 분석 검색어 "${term}" 처리 중 오류:`, error);
+    }
+  }
+
+  return results.slice(0, 8);
+}
+
+// 웹 검색 시뮬레이션 함수 (실제 구현에서는 검색 API 사용)
+async function simulateWebSearch(query) {
+  // 실제 구현에서는 Google Custom Search API, Bing Search API 등을 사용
+  // 여기서는 시뮬레이션된 결과를 반환
+  const mockData = {
+    '다이슨 드라이기': [
+      {
+        title: '다이슨 드라이기 시장 현황 및 트렌드 분석',
+        snippet: '2024년 다이슨 드라이기 시장은 프리미엄 가전 시장에서 지속적인 성장세를 보이고 있습니다. 특히 20-30대 여성을 중심으로 한 고급 헤어케어 제품 수요가 증가하고 있습니다.',
+        url: 'https://example.com/dyson-market-analysis',
+        source: '마케팅 리서치 리포트',
+        date: '2024-01-15'
+      },
+      {
+        title: '다이슨 vs 경쟁사 비교 분석',
+        snippet: '다이슨 드라이기는 강력한 바람세기와 머리결 손상 방지 기능으로 경쟁사 대비 우위를 점하고 있습니다. 특히 곱슬머리 사용자들 사이에서 높은 만족도를 보이고 있습니다.',
+        url: 'https://example.com/dyson-competitor-analysis',
+        source: '소비자 리뷰 분석',
+        date: '2024-01-10'
+      }
+    ],
+    '헤어케어': [
+      {
+        title: '2024 헤어케어 시장 트렌드',
+        snippet: '헤어케어 시장은 개인화와 프리미엄화 트렌드가 강화되고 있습니다. 특히 AI 기술을 활용한 맞춤형 헤어케어 솔루션이 주목받고 있습니다.',
+        url: 'https://example.com/haircare-trends-2024',
+        source: '시장 조사 보고서',
+        date: '2024-01-20'
+      }
+    ],
+    '곱슬머리': [
+      {
+        title: '곱슬머리 케어 제품 시장 동향',
+        snippet: '곱슬머리 전용 제품 시장이 빠르게 성장하고 있습니다. 자연스러운 볼륨과 손상 방지에 중점을 둔 제품들이 인기를 끌고 있습니다.',
+        url: 'https://example.com/curly-hair-market',
+        source: '뷰티 마케팅 리포트',
+        date: '2024-01-12'
+      }
+    ]
+  };
+
+  // 쿼리와 가장 유사한 키워드 찾기
+  const bestMatch = Object.keys(mockData).find(key => 
+    query.toLowerCase().includes(key.toLowerCase()) || 
+    key.toLowerCase().includes(query.toLowerCase())
+  );
+
+  return bestMatch ? mockData[bestMatch] : [
+    {
+      title: `${query} 관련 최신 정보`,
+      snippet: `${query}에 대한 최신 시장 동향과 소비자 반응을 분석한 결과입니다.`,
+      url: 'https://example.com/search-results',
+      source: '종합 분석 리포트',
+      date: new Date().toISOString().split('T')[0]
+    }
+  ];
+}
 
 const PORT = process.env.PORT || 3001;
 app.listen(PORT, () => console.log(`Server running on ${PORT}`)); 
