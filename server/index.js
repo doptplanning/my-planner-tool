@@ -7,6 +7,7 @@ const bcrypt = require('bcryptjs');
 const { Client } = require('@notionhq/client');
 const { OpenAI } = require('openai');
 const pdf = require('html-pdf');
+const pdfParse = require('pdf-parse');
 const fetch = require('node-fetch');
 const cheerio = require('cheerio');
 
@@ -785,7 +786,7 @@ async function simulateWebSearch(query) {
   // 쿼리와 가장 유사한 키워드 찾기
   const bestMatch = Object.keys(mockData).find(key => 
     query.toLowerCase().includes(key.toLowerCase()) || 
-    key.toLowerCase().includes(query.toLowerCase())
+    key.toLowerCase().includes(key.toLowerCase())
   );
 
   return bestMatch ? mockData[bestMatch] : [
@@ -797,6 +798,334 @@ async function simulateWebSearch(query) {
       date: new Date().toISOString().split('T')[0]
     }
   ];
+}
+
+// PDF 파일 업로드 및 파싱 API
+app.post('/api/upload-pdf', auth, async (req, res) => {
+  try {
+    const { pdfBase64, fileName } = req.body;
+    
+    if (!pdfBase64) {
+      return res.status(400).json({ error: 'PDF 파일이 제공되지 않았습니다.' });
+    }
+
+    // Base64를 Buffer로 변환
+    const pdfBuffer = Buffer.from(pdfBase64.split(',')[1], 'base64');
+    
+    // PDF 파싱
+    const pdfData = await pdfParse(pdfBuffer);
+    const pdfText = pdfData.text;
+    
+    res.json({
+      success: true,
+      text: pdfText,
+      pages: pdfData.numpages,
+      info: pdfData.info
+    });
+  } catch (error) {
+    console.error('PDF 파싱 오류:', error);
+    res.status(500).json({ error: 'PDF 파싱에 실패했습니다.' });
+  }
+});
+
+// 파일 분석 API - 이미지/PDF 분석 및 상세페이지 추천
+app.post('/api/analyze-files', auth, async (req, res) => {
+  const { images, pdfContent, productInfo } = req.body;
+  
+  try {
+    let analysisResult = {
+      productAnalysis: {},
+      shootingRecommendation: {},
+      detailPageRecommendation: {},
+      designReferences: []
+    };
+
+    // 이미지 분석 (GPT-4 Vision 사용)
+    if (images && images.length > 0) {
+      const imageAnalysis = await analyzeImages(images, productInfo);
+      analysisResult.productAnalysis = imageAnalysis.productAnalysis;
+      analysisResult.shootingRecommendation = imageAnalysis.shootingRecommendation;
+    }
+
+    // PDF 내용 분석
+    if (pdfContent) {
+      const pdfAnalysis = await analyzePDFContent(pdfContent, productInfo);
+      analysisResult.productAnalysis = { ...analysisResult.productAnalysis, ...pdfAnalysis.productAnalysis };
+      analysisResult.detailPageRecommendation = pdfAnalysis.detailPageRecommendation;
+    }
+
+    // 상세페이지 디자인 추천 검색
+    const designRecommendations = await searchDesignReferences(analysisResult.productAnalysis);
+    analysisResult.designReferences = designRecommendations;
+
+    res.json({
+      success: true,
+      analysis: analysisResult
+    });
+  } catch (error) {
+    console.error('파일 분석 오류:', error);
+    res.status(500).json({ error: '파일 분석에 실패했습니다.' });
+  }
+});
+
+// 이미지 분석 함수
+async function analyzeImages(images, productInfo) {
+  const userMessages = [
+    {
+      type: 'text',
+      text: `다음 이미지들을 분석하여 제품 정보, 촬영 컷수 추천, 상세페이지 섹션 수 추천을 해주세요.
+
+**분석 요청사항:**
+1. **제품 분석**: 제품 종류, 주요 특징, 타겟 고객층, 가격대 추정
+2. **촬영 컷수 추천**: 상세페이지에 필요한 촬영 컷수와 각 컷의 목적
+3. **상세페이지 섹션 추천**: 효과적인 상세페이지 구성 섹션과 개수
+
+**제품 정보**: ${productInfo || '제공되지 않음'}
+
+**분석 결과는 다음 형식으로 제공해주세요:**
+
+## 📊 제품 분석 결과
+| 항목 | 내용 | 근거 |
+|------|------|------|
+| 제품 종류 | [제품명] | 이미지 분석 결과 |
+| 주요 특징 | [특징1, 특징2, 특징3] | 시각적 특징 |
+| 타겟 고객 | [고객층] | 제품 특성 기반 |
+| 가격대 | [가격대] | 품질 및 브랜드 분석 |
+
+## 📸 촬영 컷수 추천
+| 컷 번호 | 촬영 목적 | 중요도 | 설명 |
+|---------|-----------|--------|------|
+| 1 | 메인 컷 | ⭐⭐⭐⭐⭐ | 제품 전체 모습 |
+| 2 | 디테일 컷 | ⭐⭐⭐⭐ | 주요 기능/특징 |
+| 3 | 사용 컷 | ⭐⭐⭐⭐ | 실제 사용 모습 |
+| 4 | 비교 컷 | ⭐⭐⭐ | 경쟁사 대비 장점 |
+| 5 | 패키지 컷 | ⭐⭐⭐ | 포장 및 구성품 |
+
+## 📋 상세페이지 섹션 추천
+| 섹션 | 목적 | 콘텐츠 | 중요도 |
+|------|------|--------|--------|
+| 1. 헤더 | 첫인상 | 메인 이미지 + 핵심 메시지 | ⭐⭐⭐⭐⭐ |
+| 2. 제품 소개 | 기본 정보 | 제품명, 특징, 스펙 | ⭐⭐⭐⭐⭐ |
+| 3. 주요 기능 | 차별화 | 핵심 기능 3-5개 | ⭐⭐⭐⭐⭐ |
+| 4. 사용법 | 이해도 | 단계별 사용법 | ⭐⭐⭐⭐ |
+| 5. 비교표 | 신뢰도 | 경쟁사 대비 장점 | ⭐⭐⭐⭐ |
+| 6. 고객 후기 | 신뢰도 | 실제 사용자 후기 | ⭐⭐⭐⭐ |
+| 7. 구매 안내 | 전환 | 가격, 배송, AS 정보 | ⭐⭐⭐⭐⭐ |
+
+**추가 권장사항:**
+- 촬영 각도: 정면, 측면, 상단, 디테일
+- 배경: 깔끔한 화이트, 라이프스타일
+- 조명: 자연광 또는 스튜디오 조명
+- 해상도: 최소 1920x1080px 권장`
+    }
+  ];
+
+  // 이미지들을 userMessages에 추가
+  images.forEach((imageBase64) => {
+    userMessages.push({
+      type: 'image_url',
+      image_url: { url: imageBase64 }
+    });
+  });
+
+  const response = await fetch('https://api.openai.com/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      model: 'gpt-4o',
+      messages: [
+        {
+          role: 'system',
+          content: '당신은 제품 이미지 분석 전문가입니다. 이미지를 분석하여 제품 정보, 촬영 컷수, 상세페이지 구성에 대한 전문적인 조언을 제공합니다.'
+        },
+        {
+          role: 'user',
+          content: userMessages
+        }
+      ],
+      max_tokens: 2000,
+      temperature: 0.7
+    })
+  });
+
+  const data = await response.json();
+  const analysis = data.choices?.[0]?.message?.content || '';
+
+  return {
+    productAnalysis: analysis,
+    shootingRecommendation: analysis
+  };
+}
+
+// PDF 내용 분석 함수
+async function analyzePDFContent(pdfContent, productInfo) {
+  const response = await fetch('https://api.openai.com/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      model: 'gpt-4o',
+      messages: [
+        {
+          role: 'system',
+          content: '당신은 PDF 문서 분석 전문가입니다. 제품 브리프나 스펙서를 분석하여 상세페이지 구성에 필요한 정보를 추출합니다.'
+        },
+        {
+          role: 'user',
+          content: `다음 PDF 내용을 분석하여 상세페이지 구성에 필요한 정보를 추출해주세요:
+
+**PDF 내용:**
+${pdfContent}
+
+**제품 정보**: ${productInfo || '제공되지 않음'}
+
+**분석 요청사항:**
+1. 제품의 주요 특징과 장점
+2. 타겟 고객층 분석
+3. 상세페이지에 포함해야 할 핵심 정보
+4. 마케팅 포인트와 차별화 요소
+
+**분석 결과는 다음 형식으로 제공해주세요:**
+
+## 📋 PDF 분석 결과
+| 항목 | 내용 | 출처 |
+|------|------|------|
+| 제품명 | [제품명] | PDF 내용 |
+| 주요 특징 | [특징1, 특징2, 특징3] | 스펙서 분석 |
+| 타겟 고객 | [고객층] | 마케팅 정보 |
+| 핵심 메시지 | [메시지] | 브리프 분석 |
+
+## 🎯 상세페이지 구성 제안
+| 섹션 | 콘텐츠 | 중요도 |
+|------|--------|--------|
+| 1. 헤더 | [핵심 메시지] | ⭐⭐⭐⭐⭐ |
+| 2. 제품 소개 | [기본 정보] | ⭐⭐⭐⭐⭐ |
+| 3. 주요 기능 | [핵심 기능] | ⭐⭐⭐⭐⭐ |
+| 4. 사용법 | [사용 방법] | ⭐⭐⭐⭐ |
+| 5. 비교표 | [경쟁사 대비] | ⭐⭐⭐⭐ |
+| 6. 고객 후기 | [신뢰도] | ⭐⭐⭐⭐ |
+| 7. 구매 안내 | [전환 유도] | ⭐⭐⭐⭐⭐ |
+
+**추가 권장사항:**
+- 강조할 핵심 포인트
+- 고객이 궁금해할 내용
+- 경쟁사와의 차별화 요소`
+        }
+      ],
+      max_tokens: 1500,
+      temperature: 0.7
+    })
+  });
+
+  const data = await response.json();
+  const analysis = data.choices?.[0]?.message?.content || '';
+
+  return {
+    productAnalysis: analysis,
+    detailPageRecommendation: analysis
+  };
+}
+
+// 상세페이지 디자인 추천 검색 함수
+async function searchDesignReferences(productAnalysis) {
+  // 제품 분석 결과에서 키워드 추출
+  const keywords = extractKeywords(productAnalysis);
+  
+  // 웹 검색을 통해 디자인 레퍼런스 찾기
+  const searchResults = await performGeneralSearch(`${keywords.join(' ')} 상세페이지 디자인 레퍼런스`);
+  
+  // 샘플 디자인 레퍼런스 이미지 (실제로는 CDN이나 이미지 서버에서 제공)
+  const sampleDesigns = {
+    minimal: [
+      'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=400&h=300&fit=crop',
+      'https://images.unsplash.com/photo-1560472354-b33ff0c44a43?w=400&h=300&fit=crop'
+    ],
+    lifestyle: [
+      'https://images.unsplash.com/photo-1441986300917-64674bd600d8?w=400&h=300&fit=crop',
+      'https://images.unsplash.com/photo-1556909114-f6e7ad7d3136?w=400&h=300&fit=crop'
+    ],
+    luxury: [
+      'https://images.unsplash.com/photo-1441984904996-e0b6ba687e04?w=400&h=300&fit=crop',
+      'https://images.unsplash.com/photo-1556909114-f6e7ad7d3136?w=400&h=300&fit=crop'
+    ],
+    creative: [
+      'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=400&h=300&fit=crop',
+      'https://images.unsplash.com/photo-1560472354-b33ff0c44a43?w=400&h=300&fit=crop'
+    ]
+  };
+  
+  // 디자인 추천 결과 구성
+  const designRecommendations = [
+    {
+      title: '모던 미니멀 스타일',
+      description: '깔끔하고 심플한 디자인으로 제품에 집중',
+      examples: searchResults.slice(0, 2),
+      sampleImages: sampleDesigns.minimal,
+      style: 'minimal',
+      colorScheme: ['#ffffff', '#f8f9fa', '#212529'],
+      typography: 'Sans-serif',
+      layout: 'Grid-based',
+      features: ['깔끔한 레이아웃', '제품 중심 디자인', '여백 활용', '단순한 색상 팔레트'],
+      bestFor: '기술 제품, 프리미엄 브랜드, 깔끔한 이미지가 필요한 제품'
+    },
+    {
+      title: '컬러풀 라이프스타일',
+      description: '활기찬 색상과 라이프스타일 이미지 활용',
+      examples: searchResults.slice(2, 4),
+      sampleImages: sampleDesigns.lifestyle,
+      style: 'lifestyle',
+      colorScheme: ['#ff6b6b', '#4ecdc4', '#45b7d1', '#feca57'],
+      typography: 'Modern',
+      layout: 'Story-based',
+      features: ['다채로운 색상', '라이프스타일 이미지', '감성적 어필', '스토리텔링'],
+      bestFor: '패션, 뷰티, 라이프스타일 제품, 젊은 타겟'
+    },
+    {
+      title: '프리미엄 럭셔리',
+      description: '고급스러운 느낌의 프리미엄 디자인',
+      examples: searchResults.slice(4, 6),
+      sampleImages: sampleDesigns.luxury,
+      style: 'luxury',
+      colorScheme: ['#2c3e50', '#34495e', '#ecf0f1', '#bdc3c7'],
+      typography: 'Serif',
+      layout: 'Full-width',
+      features: ['고급스러운 색상', '세련된 타이포그래피', '넓은 레이아웃', '프리미엄 느낌'],
+      bestFor: '고급 브랜드, 럭셔리 제품, 프리미엄 서비스'
+    },
+    {
+      title: '플레이풀 크리에이티브',
+      description: '재미있고 창의적인 디자인으로 주목도 향상',
+      examples: searchResults.slice(6, 8),
+      sampleImages: sampleDesigns.creative,
+      style: 'creative',
+      colorScheme: ['#ff9ff3', '#54a0ff', '#5f27cd', '#00d2d3'],
+      typography: 'Display',
+      layout: 'Asymmetric',
+      features: ['창의적인 레이아웃', '다양한 그래픽 요소', '인터랙티브 요소', '높은 주목도'],
+      bestFor: '창의적 제품, 엔터테인먼트, 젊은 브랜드'
+    }
+  ];
+
+  return designRecommendations;
+}
+
+// 키워드 추출 함수
+function extractKeywords(text) {
+  const commonKeywords = ['제품', '기능', '특징', '디자인', '스타일', '컬러', '타겟', '고객'];
+  const extracted = [];
+  
+  commonKeywords.forEach(keyword => {
+    if (text.includes(keyword)) {
+      extracted.push(keyword);
+    }
+  });
+  
+  return extracted.length > 0 ? extracted : ['상세페이지', '디자인', '제품'];
 }
 
 const PORT = process.env.PORT || 3001;

@@ -27,9 +27,9 @@ const FileUploader: React.FC<FileUploaderProps> = ({ onFileSelect, files, simple
           multiple
           style={{ display: 'none' }}
           onChange={handleFileChange}
-          accept=".pdf,.doc,.docx,.txt,image/jpeg,image/png,image/gif"
+          accept=".pdf,.doc,.docx,.txt,image/jpeg,image/png,image/gif,image/webp,image/svg+xml"
         />
-        <button type="button" onClick={handleClick} style={{ borderRadius: 24, background: '#f5f5f5', border: '1px solid #bbb', padding: '8px 18px', fontSize: 15, fontWeight: 500, cursor: 'pointer' }}>이미지 업로드</button>
+        <button type="button" onClick={handleClick} style={{ borderRadius: 24, background: '#f5f5f5', border: '1px solid #bbb', padding: '8px 18px', fontSize: 15, fontWeight: 500, cursor: 'pointer' }}>파일 업로드</button>
       </>
     ) : (
       <div style={{ border: '1px dashed #aaa', padding: 24, textAlign: 'center', borderRadius: 8 }}>
@@ -39,7 +39,7 @@ const FileUploader: React.FC<FileUploaderProps> = ({ onFileSelect, files, simple
           multiple
           style={{ display: 'none' }}
           onChange={handleFileChange}
-          accept=".pdf,.doc,.docx,.txt,image/jpeg,image/png,image/gif"
+          accept=".pdf,.doc,.docx,.txt,image/jpeg,image/png,image/gif,image/webp,image/svg+xml"
         />
         <button type="button" onClick={handleClick} style={{ marginBottom: 12 }}>
           파일 선택

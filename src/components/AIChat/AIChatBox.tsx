@@ -25,6 +25,8 @@ const AIChatBox: React.FC<AIChatBoxProps> = ({ onAIResult, height = '80vh', styl
   const [uploadedFiles, setUploadedFiles] = useState<File[]>([]);
   const [enableWebSearch, setEnableWebSearch] = useState(false);
   const [webSearchLoading, setWebSearchLoading] = useState(false);
+  const [fileAnalysisLoading, setFileAnalysisLoading] = useState(false);
+  const [productInfo, setProductInfo] = useState('');
   const inputRef = useRef<HTMLInputElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -221,6 +223,127 @@ const AIChatBox: React.FC<AIChatBoxProps> = ({ onAIResult, height = '80vh', styl
     setMessages(prev => [...prev, { role: 'ai', content: sampleQuestions }]);
   };
 
+  // 파일 분석 함수
+  const handleFileAnalysis = async () => {
+    if (uploadedFiles.length === 0) return;
+    
+    setFileAnalysisLoading(true);
+    setMessages(prev => [...prev, { role: 'ai', content: '🔍 파일을 분석하고 있습니다...' }]);
+    
+    try {
+      const API_BASE = import.meta.env.VITE_API_URL || 'https://my-planner-tool.onrender.com';
+      let images: string[] = [];
+      let pdfContent = '';
+      
+      // 파일 타입별 처리
+      for (const file of uploadedFiles) {
+        if (file.type.startsWith('image/')) {
+          const imageBase64 = await new Promise<string>((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(reader.result as string);
+            reader.onerror = reject;
+            reader.readAsDataURL(file);
+          });
+          images.push(imageBase64);
+        } else if (file.type === 'application/pdf') {
+          // PDF 파일 파싱
+          const pdfBase64 = await new Promise<string>((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(reader.result as string);
+            reader.onerror = reject;
+            reader.readAsDataURL(file);
+          });
+          
+          try {
+            const pdfRes = await fetch(`${API_BASE}/api/upload-pdf`, {
+              method: 'POST',
+              headers: { 
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${localStorage.getItem('token')}`
+              },
+              body: JSON.stringify({ 
+                pdfBase64,
+                fileName: file.name
+              }),
+            });
+            
+            const pdfData = await pdfRes.json();
+            if (pdfData.success) {
+              pdfContent = pdfData.text;
+            } else {
+              pdfContent = `PDF 파일: ${file.name} (${(file.size / 1024).toFixed(1)}KB) - 파싱 실패`;
+            }
+          } catch (error) {
+            console.error('PDF 파싱 오류:', error);
+            pdfContent = `PDF 파일: ${file.name} (${(file.size / 1024).toFixed(1)}KB) - 파싱 오류`;
+          }
+        }
+      }
+      
+      const res = await fetch(`${API_BASE}/api/analyze-files`, {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        },
+        body: JSON.stringify({ 
+          images,
+          pdfContent,
+          productInfo
+        }),
+      });
+      
+      const data = await res.json();
+      if (data.error) {
+        setMessages(prev => [...prev, { role: 'ai', content: `파일 분석 실패: ${data.error}` }]);
+      } else {
+        const analysisResult = data.analysis;
+        let analysisMessage = `# 📊 파일 분석 결과\n\n`;
+        
+        if (analysisResult.productAnalysis) {
+          analysisMessage += `## 🎯 제품 분석\n${analysisResult.productAnalysis}\n\n`;
+        }
+        
+        if (analysisResult.shootingRecommendation) {
+          analysisMessage += `## 📸 촬영 추천\n${analysisResult.shootingRecommendation}\n\n`;
+        }
+        
+        if (analysisResult.detailPageRecommendation) {
+          analysisMessage += `## 📋 상세페이지 구성\n${analysisResult.detailPageRecommendation}\n\n`;
+        }
+        
+        if (analysisResult.designReferences && analysisResult.designReferences.length > 0) {
+          analysisMessage += `## 🎨 디자인 레퍼런스 추천\n\n`;
+          analysisResult.designReferences.forEach((ref: any, index: number) => {
+            analysisMessage += `### ${index + 1}. ${ref.title}\n`;
+            analysisMessage += `**스타일**: ${ref.description}\n`;
+            analysisMessage += `**컬러 팔레트**: ${ref.colorScheme.map((color: string) => `\`${color}\``).join(', ')}\n`;
+            analysisMessage += `**타이포그래피**: ${ref.typography}\n`;
+            analysisMessage += `**레이아웃**: ${ref.layout}\n`;
+            analysisMessage += `**주요 특징**: ${ref.features?.join(', ') || 'N/A'}\n`;
+            analysisMessage += `**적합한 제품**: ${ref.bestFor || 'N/A'}\n`;
+            
+            // 샘플 이미지 추가
+            if (ref.sampleImages && ref.sampleImages.length > 0) {
+              analysisMessage += `**샘플 이미지**:\n`;
+              ref.sampleImages.forEach((img: string, imgIndex: number) => {
+                analysisMessage += `![${ref.title} 샘플 ${imgIndex + 1}](${img})\n`;
+              });
+            }
+            analysisMessage += `\n`;
+          });
+        }
+        
+        setMessages(prev => [...prev, { role: 'ai', content: analysisMessage }]);
+      }
+    } catch (error) {
+      console.error('파일 분석 오류:', error);
+      setMessages(prev => [...prev, { role: 'ai', content: '파일 분석 중 오류가 발생했습니다.' }]);
+    } finally {
+      setFileAnalysisLoading(false);
+    }
+  };
+
   const handleSend = async () => {
     if ((!input.trim() && uploadedFiles.length === 0) || loading) return;
     if (input.trim()) setMessages(prev => [...prev, { role: 'user', content: input }]);
@@ -375,7 +498,91 @@ const AIChatBox: React.FC<AIChatBoxProps> = ({ onAIResult, height = '80vh', styl
         >
           {enableWebSearch ? '🌐 웹 검색 ON' : '🌐 웹 검색 OFF'}
         </button>
+        {uploadedFiles.length > 0 && (
+          <button
+            onClick={handleFileAnalysis}
+            disabled={fileAnalysisLoading}
+            style={{
+              background: '#8b5cf6',
+              color: 'white',
+              border: 'none',
+              borderRadius: '8px',
+              padding: '8px 16px',
+              fontSize: '13px',
+              fontWeight: '600',
+              cursor: fileAnalysisLoading ? 'not-allowed' : 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              opacity: fileAnalysisLoading ? 0.6 : 1
+            }}
+          >
+            {fileAnalysisLoading ? '🔍 분석 중...' : '📊 파일 분석'}
+          </button>
+        )}
       </div>
+      
+      {/* 업로드된 파일 목록 */}
+      {uploadedFiles.length > 0 && (
+        <div style={{ marginBottom: '16px', padding: '12px', background: '#f0f8ff', borderRadius: '8px', border: '1px solid #b3d9ff' }}>
+          <div style={{ fontSize: '14px', fontWeight: '600', marginBottom: '8px', color: '#0066cc' }}>
+            📁 업로드된 파일 ({uploadedFiles.length}개)
+          </div>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginBottom: '12px' }}>
+            {uploadedFiles.map((file, index) => (
+              <div
+                key={index}
+                style={{
+                  padding: '6px 12px',
+                  background: '#e6f3ff',
+                  borderRadius: '16px',
+                  fontSize: '12px',
+                  color: '#0066cc',
+                  border: '1px solid #b3d9ff',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px'
+                }}
+              >
+                {file.type.startsWith('image/') ? '🖼️' : '📄'} {file.name}
+                <button
+                  onClick={() => setUploadedFiles(prev => prev.filter((_, i) => i !== index))}
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    color: '#ff6b6b',
+                    cursor: 'pointer',
+                    fontSize: '14px',
+                    padding: '0',
+                    marginLeft: '4px'
+                  }}
+                >
+                  ×
+                </button>
+              </div>
+            ))}
+          </div>
+          
+          {/* 제품 정보 입력 필드 */}
+          <div style={{ fontSize: '14px', fontWeight: '600', marginBottom: '8px', color: '#495057' }}>
+            📝 제품 정보 (선택사항)
+          </div>
+          <input
+            type="text"
+            value={productInfo}
+            onChange={(e) => setProductInfo(e.target.value)}
+            placeholder="제품명, 브랜드, 주요 특징 등을 입력하면 더 정확한 분석이 가능합니다"
+            style={{
+              width: '100%',
+              padding: '8px 12px',
+              borderRadius: '6px',
+              border: '1px solid #ced4da',
+              fontSize: '14px',
+              outline: 'none'
+            }}
+          />
+        </div>
+      )}
       <div style={{ flex: 1, overflowY: 'auto', marginBottom: 12 }}>
         {messages.map((msg, i) => {
           // HTML table 감지
@@ -473,6 +680,31 @@ const AIChatBox: React.FC<AIChatBoxProps> = ({ onAIResult, height = '80vh', styl
                             </div>
                           );
                         }
+                        // 이미지 처리
+                        if (line.includes('![') && line.includes('](') && line.includes(')')) {
+                          const match = line.match(/!\[([^\]]*)\]\(([^)]+)\)/);
+                          if (match) {
+                            const [, alt, src] = match;
+                            return (
+                              <div key={lineIdx} style={{ margin: '8px 0' }}>
+                                <img 
+                                  src={src} 
+                                  alt={alt} 
+                                  style={{ 
+                                    maxWidth: '100%', 
+                                    height: 'auto', 
+                                    borderRadius: '8px',
+                                    border: '1px solid #e5e7eb'
+                                  }}
+                                  onError={(e) => {
+                                    e.currentTarget.style.display = 'none';
+                                  }}
+                                />
+                              </div>
+                            );
+                          }
+                        }
+                        
                         // 강조 처리
                         if (line.includes('**')) {
                           const parts = line.split('**');
@@ -488,6 +720,27 @@ const AIChatBox: React.FC<AIChatBoxProps> = ({ onAIResult, height = '80vh', styl
                             </div>
                           );
                         }
+                        
+                        // 코드 블록 처리
+                        if (line.includes('`')) {
+                          const parts = line.split('`');
+                          return (
+                            <div key={lineIdx}>
+                              {parts.map((part, partIdx) => (
+                                <span key={partIdx} style={{ 
+                                  background: partIdx % 2 === 1 ? '#f1f5f9' : 'transparent',
+                                  padding: partIdx % 2 === 1 ? '2px 6px' : '0',
+                                  borderRadius: partIdx % 2 === 1 ? '4px' : '0',
+                                  fontFamily: partIdx % 2 === 1 ? 'monospace' : 'inherit',
+                                  fontSize: partIdx % 2 === 1 ? '13px' : 'inherit'
+                                }}>
+                                  {part}
+                                </span>
+                              ))}
+                            </div>
+                          );
+                        }
+                        
                         // 일반 텍스트
                         return <div key={lineIdx}>{line}</div>;
                       })}
@@ -502,7 +755,7 @@ const AIChatBox: React.FC<AIChatBoxProps> = ({ onAIResult, height = '80vh', styl
         })}
         {loading && (
           <div style={{ color: '#888', fontSize: 15 }}>
-            {webSearchLoading ? '🔍 웹 검색 중...' : 'AI가 답변 중...'}
+            {webSearchLoading ? '🔍 웹 검색 중...' : fileAnalysisLoading ? '🔍 파일 분석 중...' : 'AI가 답변 중...'}
           </div>
         )}
         <div ref={messagesEndRef} />
