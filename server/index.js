@@ -21,15 +21,20 @@ app.use(cors({
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
-// DB 연결
-mongoose.connect(process.env.MONGO_URI, { 
-  serverSelectionTimeoutMS: 5000,
-  socketTimeoutMS: 45000,
-}).then(() => {
-  console.log('MongoDB 연결 성공');
-}).catch((err) => {
-  console.error('MongoDB 연결 실패:', err.message);
-});
+// DB 연결 (선택적)
+if (process.env.MONGO_URI) {
+  mongoose.connect(process.env.MONGO_URI, { 
+    serverSelectionTimeoutMS: 5000,
+    socketTimeoutMS: 45000,
+  }).then(() => {
+    console.log('MongoDB 연결 성공');
+  }).catch((err) => {
+    console.error('MongoDB 연결 실패:', err.message);
+    console.log('MongoDB 없이 서버를 계속 실행합니다.');
+  });
+} else {
+  console.log('MONGO_URI가 설정되지 않아 MongoDB 연결을 건너뜁니다.');
+}
 
 // User 모델
 const User = mongoose.model('User', new mongoose.Schema({
@@ -64,6 +69,9 @@ function auth(req, res, next) {
 
 // 회원가입
 app.post('/api/register', async (req, res) => {
+  if (!process.env.MONGO_URI) {
+    return res.status(503).json({ error: '데이터베이스 연결이 설정되지 않았습니다.' });
+  }
   const { email, password } = req.body;
   if (await User.findOne({ email })) return res.status(400).json({ error: '이미 가입된 이메일' });
   const hash = await bcrypt.hash(password, 10);
@@ -73,6 +81,9 @@ app.post('/api/register', async (req, res) => {
 
 // 로그인
 app.post('/api/login', async (req, res) => {
+  if (!process.env.MONGO_URI) {
+    return res.status(503).json({ error: '데이터베이스 연결이 설정되지 않았습니다.' });
+  }
   const { email, password } = req.body;
   const user = await User.findOne({ email });
   if (!user || !(await bcrypt.compare(password, user.password))) {
@@ -437,12 +448,19 @@ app.post('/api/generate-pdf', async (req, res) => {
 });
 
 // 노션 학습페이지용 AI 대화 API (이미지 지원 + 웹 검색)
-app.post('/api/notion/ai-chat', auth, async (req, res) => {
+app.post('/api/notion/ai-chat', async (req, res) => {
   const { message, images, enableWebSearch = false } = req.body;
   try {
-    // 최근 학습된 aiRaw 불러오기
-    const lastTraining = await Training.findOne({ userId: req.user.id, status: 'completed' }).sort({ createdAt: -1 });
-    const context = lastTraining?.aiRaw || lastTraining?.result || '';
+    // 최근 학습된 aiRaw 불러오기 (MongoDB 연결이 있을 때만)
+    let context = '';
+    if (process.env.MONGO_URI) {
+      try {
+        const lastTraining = await Training.findOne({ userId: req.user?.id, status: 'completed' }).sort({ createdAt: -1 });
+        context = lastTraining?.aiRaw || lastTraining?.result || '';
+      } catch (error) {
+        console.log('MongoDB 연결 없음, 컨텍스트 없이 진행');
+      }
+    }
     
     let webSearchResults = '';
     if (enableWebSearch && message) {
@@ -557,7 +575,7 @@ ${message}` }
 });
 
 // 웹 검색 API
-app.post('/api/web-search', auth, async (req, res) => {
+app.post('/api/web-search', async (req, res) => {
   const { query, searchType = 'general' } = req.body;
   
   if (!query || query.trim() === '') {
@@ -1134,6 +1152,15 @@ function extractKeywords(text) {
   
   return extracted.length > 0 ? extracted : ['상세페이지', '디자인', '제품'];
 }
+
+// 루트 경로 서빙
+app.get('/', (req, res) => {
+  res.json({ 
+    message: 'My Planner Tool API Server',
+    status: 'running',
+    timestamp: new Date().toISOString()
+  });
+});
 
 const PORT = process.env.PORT || 3001;
 app.listen(PORT, () => console.log(`Server running on ${PORT}`)); 

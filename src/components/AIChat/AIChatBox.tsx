@@ -372,8 +372,7 @@ const AIChatBox: React.FC<AIChatBoxProps> = ({ onAIResult, height = '80vh', styl
         const res = await fetch(`${API_BASE}/api/notion/ai-chat`, {
           method: 'POST',
           headers: { 
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${localStorage.getItem('token')}`
+            'Content-Type': 'application/json'
           },
           body: JSON.stringify({ 
             message: input, 
