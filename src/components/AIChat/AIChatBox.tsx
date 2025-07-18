@@ -258,8 +258,7 @@ const AIChatBox: React.FC<AIChatBoxProps> = ({ onAIResult, height = '80vh', styl
             const pdfRes = await fetch(`${API_BASE}/api/upload-pdf`, {
               method: 'POST',
               headers: { 
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${localStorage.getItem('token')}`
+                'Content-Type': 'application/json'
               },
               body: JSON.stringify({ 
                 pdfBase64,
@@ -283,8 +282,7 @@ const AIChatBox: React.FC<AIChatBoxProps> = ({ onAIResult, height = '80vh', styl
       const res = await fetch(`${API_BASE}/api/analyze-files`, {
         method: 'POST',
         headers: { 
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
+          'Content-Type': 'application/json'
         },
         body: JSON.stringify({ 
           images,

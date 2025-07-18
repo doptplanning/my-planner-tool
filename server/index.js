@@ -22,7 +22,14 @@ app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
 // DB 연결
-mongoose.connect(process.env.MONGO_URI, { useNewUrlParser: true, useUnifiedTopology: true });
+mongoose.connect(process.env.MONGO_URI, { 
+  serverSelectionTimeoutMS: 5000,
+  socketTimeoutMS: 45000,
+}).then(() => {
+  console.log('MongoDB 연결 성공');
+}).catch((err) => {
+  console.error('MongoDB 연결 실패:', err.message);
+});
 
 // User 모델
 const User = mongoose.model('User', new mongoose.Schema({
@@ -801,7 +808,7 @@ async function simulateWebSearch(query) {
 }
 
 // PDF 파일 업로드 및 파싱 API
-app.post('/api/upload-pdf', auth, async (req, res) => {
+app.post('/api/upload-pdf', async (req, res) => {
   try {
     const { pdfBase64, fileName } = req.body;
     
@@ -829,7 +836,7 @@ app.post('/api/upload-pdf', auth, async (req, res) => {
 });
 
 // 파일 분석 API - 이미지/PDF 분석 및 상세페이지 추천
-app.post('/api/analyze-files', auth, async (req, res) => {
+app.post('/api/analyze-files', async (req, res) => {
   const { images, pdfContent, productInfo } = req.body;
   
   try {
